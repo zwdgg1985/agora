@@ -45,8 +45,7 @@ public class Ledger
     public this (TransactionPool pool)
     {
         this.pool = pool;
-        auto block = getGenesisBlock();
-        assert(this.acceptBlock(block));
+        this.addGenesisBlock();
     }
 
     /***************************************************************************
@@ -214,6 +213,19 @@ public class Ledger
             return block.getMerklePath(index);
         else
             return null;
+    }
+
+    /***************************************************************************
+
+        Add the genesis block to the ledger.
+
+    ***************************************************************************/
+
+    private void addGenesisBlock ()
+    {
+        auto block = getGenesisBlock();
+        this.ledger ~= block;
+        this.last_block = &this.ledger[$ - 1];
     }
 }
 

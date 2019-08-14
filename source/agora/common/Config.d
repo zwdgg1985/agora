@@ -95,6 +95,9 @@ public struct NodeConfig
     /// The seed to use for the keypair of this node
     public immutable KeyPair key_pair;
 
+    /// Maximum number of UTXOs to keep in the hot cache (for performance)
+    public size_t utxo_cache_size = 4096;
+
     /// Number of msecs to wait before retrying failed connections
     public long retry_delay = 3000;
 
@@ -270,6 +273,10 @@ private NodeConfig parseNodeConfig (Node node)
     auto max_listeners = node["max_listeners"].as!size_t;
     auto address = node["address"].as!string;
 
+    size_t utxo_cache_size = NodeConfig.utxo_cache_size.init;
+    if (auto delay = "utxo_cache_size" in node)
+        utxo_cache_size = delay.as!size_t;
+
     long retry_delay = 3000;
     if (auto delay = "retry_delay" in node)
         retry_delay = cast(long)(delay.as!float * 1000);
@@ -292,6 +299,7 @@ private NodeConfig parseNodeConfig (Node node)
         port : port,
         key_pair : key_pair,
         retry_delay : retry_delay,
+        utxo_cache_size : utxo_cache_size,
         max_retries : max_retries,
         timeout : timeout,
         data_dir : data_dir,

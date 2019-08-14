@@ -21,6 +21,7 @@ import agora.common.crypto.Key;
 import agora.common.Data;
 import agora.common.TransactionPool;
 import agora.consensus.data.Transaction;
+import agora.consensus.data.UTXOSet;
 import agora.network.NetworkManager;
 import agora.node.API;
 import agora.node.BlockStorage;
@@ -67,6 +68,9 @@ public class Node : API
     /// Transaction pool
     private TransactionPool pool;
 
+    /// Set of unspent transaction outputs
+    private UTXOSet utxo_set;
+
     ///
     private Ledger ledger;
 
@@ -83,7 +87,8 @@ public class Node : API
             config.network, config.dns_seeds, this.metadata);
         this.storage = this.getBlockStorage(config.node.data_dir);
         this.pool = this.getPool(config.node.data_dir);
-        this.ledger = new Ledger(this.pool, this.storage);
+        this.utxo_set = this.getUtxoSet(config.node.data_dir);
+        this.ledger = new Ledger(this.pool, this.utxo_set, this.storage);
         this.gossip = new GossipProtocol(this.network, this.ledger);
         this.exception = new RestException(
             400, Json("The query was incorrect"), string.init, int.init);
@@ -113,6 +118,7 @@ public class Node : API
         logInfo("Shutting down..");
         this.network.dumpMetadata();
         this.pool.shutdown();
+        this.utxo_set.shutdown();
     }
 
     /// GET /public_key
@@ -209,6 +215,27 @@ public class Node : API
     {
         return new TransactionPool(buildPath(
             config.node.data_dir, "tx_pool.dat"));
+    }
+
+    /***************************************************************************
+
+        Returns an instance of a UTXOSet
+
+        Unittest code may override this method to provide a Utxo set
+        that doesn't do any I/O.
+
+        Params:
+            data_dir = path to the data directory
+
+        Returns:
+            the UTXOSet instance
+
+    ***************************************************************************/
+
+    protected UTXOSet getUtxoSet (string data_dir)
+    {
+        return new UTXOSet(config.node.utxo_cache_size,
+            buildPath(config.node.data_dir, "utxo_set.dat"));
     }
 
     /***************************************************************************

@@ -13,12 +13,14 @@
 
 module agora.node.Ledger;
 
+import agora.common.Set;
 import agora.common.Amount;
-import agora.consensus.data.Block;
 import agora.common.Data;
 import agora.common.Hash;
 import agora.common.TransactionPool;
+import agora.consensus.data.Block;
 import agora.consensus.data.Transaction;
+import agora.consensus.data.UtxoSet;
 import agora.consensus.Genesis;
 import agora.consensus.Validation;
 import agora.node.API;
@@ -41,10 +43,24 @@ public class Ledger
     /// Pool of transactions to pick from when generating blocks
     private TransactionPool pool;
 
-    /// Ctor
-    public this (TransactionPool pool)
+    /// Tracks unspent transaction outputs
+    private UtxoSet utxo_set;
+
+
+    /***************************************************************************
+
+        Constructor
+
+        Params:
+            pool = the transaction pool
+            utxo_set = the set of unspent transactions
+
+    ***************************************************************************/
+
+    public this (TransactionPool pool, UtxoSet utxo_set)
     {
         this.pool = pool;
+        this.utxo_set = utxo_set;
         this.addGenesisBlock();
     }
 
@@ -62,17 +78,15 @@ public class Ledger
 
     ***************************************************************************/
 
-    public bool acceptBlock (const ref Block block) nothrow @safe
+    public bool acceptBlock (const ref Block block) nothrow @trusted
     {
-        if (!block.isValid(this.last_block.header.height,
-            this.last_block.header.hashFull, &this.findOutput))
+        if (!this.isValidBlock(block))
         {
-            logDebug("Rejected block. %s", block);
+            logDebug("Rejected block: %s", block);
             return false;
         }
 
-        this.ledger ~= block;
-        this.last_block = &this.ledger[$ - 1];
+        this.addValidatedBlock(block);
         return true;
     }
 
@@ -95,14 +109,31 @@ public class Ledger
 
     public bool acceptTransaction (Transaction tx) @safe
     {
-        if (!tx.isValid(&this.findOutput))
+        if (!this.isValidTransaction(tx))
             return false;
 
         this.pool.add(tx);
         if (this.pool.length >= Block.TxsInBlock)
-            this.makeBlock();
+            this.makeBlockFromTxPool();
 
         return true;
+    }
+
+    /***************************************************************************
+
+        Add a validated block to the Ledger,
+        and add all of its outputs to the UTXO set.
+
+        Params:
+            block = the block to add
+
+    ***************************************************************************/
+
+    private void addValidatedBlock (const ref Block block) nothrow @trusted
+    {
+        block.txs.each!(tx => this.utxo_set.updateUtxoSet(tx));
+        this.ledger ~= block;
+        this.last_block = &this.ledger[$ - 1];
     }
 
     /***************************************************************************
@@ -111,12 +142,47 @@ public class Ledger
 
     ***************************************************************************/
 
-    private void makeBlock () @safe
+    private void makeBlockFromTxPool () @safe
     {
         auto txs = this.pool.take(Block.TxsInBlock);
         assert(txs.length == Block.TxsInBlock);
-        auto block = makeNewBlock(*this.last_block, txs);
+        auto block = .makeNewBlock(*this.last_block, txs);
         assert(this.acceptBlock(block));
+    }
+
+    /***************************************************************************
+
+        Check whether the transaction is valid
+
+        Params:
+            transaction = the transaction to check
+
+        Returns:
+            true if the transaction is considered valid
+
+    ***************************************************************************/
+
+    public bool isValidTransaction (const ref Transaction tx) nothrow @safe
+    {
+        return tx.isValid(this.utxo_set.getUtxoFinder());
+    }
+
+    /***************************************************************************
+
+        Check whether the block is valid.
+
+        Params:
+            block = the block to check
+
+        Returns:
+            true if the block is considered valid
+
+    ***************************************************************************/
+
+    public bool isValidBlock (const ref Block block) nothrow @safe
+    {
+        return block.isValid(this.last_block.header.height,
+            this.last_block.header.hashFull, this.utxo_set.getUtxoFinder());
     }
 
     /***************************************************************************
@@ -159,42 +225,6 @@ public class Ledger
 
     /***************************************************************************
 
-        Find a transaction in the ledger
-
-        Params:
-            tx_hash = the hash of transation
-
-        Return:
-            Return transaction if found. Return null otherwise.
-
-    ***************************************************************************/
-
-    private bool findOutput (Hash tx_hash, size_t index, out Output output)
-        @safe nothrow @nogc
-    {
-        foreach (ref block; this.ledger)
-        {
-            foreach (ref tx; block.txs)
-            {
-                if (hashFull(tx) == tx_hash)
-                {
-                    if (index < tx.outputs.length)
-                    {
-                        output = tx.outputs[index];
-                        return true;
-                    }
-
-                    return false;
-                }
-            }
-        }
-
-        return false;
-    }
-
-
-    /***************************************************************************
-
         Get the array of hashs the merkle path.
 
         Params:
@@ -229,6 +259,7 @@ public class Ledger
     private void addGenesisBlock ()
     {
         auto block = getGenesisBlock();
+        block.txs.each!(tx => this.utxo_set.updateUtxoSet(tx));
         this.ledger ~= block;
         this.last_block = &this.ledger[$ - 1];
     }
@@ -336,7 +367,7 @@ unittest
 }
 
 /// Merkle Proof
-unittest
+version (none) unittest
 {
     import agora.common.crypto.Key;
 

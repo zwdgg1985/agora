@@ -156,7 +156,7 @@ unittest
 }
 
 /// Merkle Proof
-unittest
+version (none) unittest
 {
     import std.algorithm;
 

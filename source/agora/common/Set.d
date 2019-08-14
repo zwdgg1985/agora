@@ -68,6 +68,12 @@ public struct Set (T)
         foreach (key; rhs)
             this.put(key);
     }
+
+    /// Clear the set
+    public void clear () @trusted
+    {
+        this._set.clear();
+    }
 }
 
 /// fill the buffer with the set's keys

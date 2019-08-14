@@ -21,6 +21,7 @@ import agora.common.crypto.Key;
 import agora.common.Data;
 import agora.common.TransactionPool;
 import agora.consensus.data.Transaction;
+import agora.consensus.data.UtxoSet;
 import agora.network.NetworkManager;
 import agora.node.API;
 import agora.node.Ledger;
@@ -66,6 +67,9 @@ public class Node : API
     /// Transaction pool
     private TransactionPool pool;
 
+    /// Set of unspent transaction
+    private UtxoSet utxo_set;
+
     ///
     private Ledger ledger;
 
@@ -79,7 +83,8 @@ public class Node : API
         this.network = this.getNetworkManager(config.node, config.banman,
             config.network, config.dns_seeds, this.metadata);
         this.pool = this.getPool(config.node.data_dir);
-        this.ledger = new Ledger(this.pool);
+        this.utxo_set = this.getUtxoSet(config.node.data_dir);
+        this.ledger = new Ledger(this.pool, this.utxo_set);
         this.gossip = new GossipProtocol(this.network, this.ledger);
         this.exception = new RestException(
             400, Json("The query was incorrect"), string.init, int.init);
@@ -205,6 +210,26 @@ public class Node : API
     {
         return new TransactionPool(buildPath(
             config.node.data_dir, "tx_pool.dat"));
+    }
+
+    /***************************************************************************
+
+        Returns an instance of a UtxoSet
+
+        Unittest code may override this method to provide a Utxo set
+        that doesn't do any I/O.
+
+        Params:
+            data_dir = path to the data directory
+
+        Returns:
+            the UtxoSet instance
+
+    ***************************************************************************/
+
+    protected UtxoSet getUtxoSet (string data_dir)
+    {
+        return new UtxoSet(buildPath(config.node.data_dir, "utxo_set.dat"));
     }
 
     /***************************************************************************

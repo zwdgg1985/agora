@@ -65,7 +65,7 @@ public class Ledger
 
     public bool acceptBlock (const ref Block block) nothrow @safe
     {
-        if (!this.isValidBlock(block))
+        if (!block.isValid(this.last_block.header.height))
         {
             logDebug("Rejected block. %s", block);
             return false;
@@ -155,29 +155,6 @@ public class Ledger
             return null;
 
         return this.ledger[block_height .. min(block_height + max_blocks, $)];
-    }
-
-    /***************************************************************************
-
-        Check the validity of a block.
-        Currently only the height of the block is
-        checked against the last block in the ledger.
-
-        Params:
-            block = the block to check
-
-        Returns:
-            true if the block is considered valid
-
-    ***************************************************************************/
-
-    private bool isValidBlock (const ref Block block) pure nothrow @safe @nogc
-    {
-        const expected_height = this.last_block !is null
-            ? (this.last_block.header.height + 1)
-            : 0;
-
-        return block.header.height == expected_height;
     }
 
     /***************************************************************************

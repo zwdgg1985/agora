@@ -169,7 +169,7 @@ public class Ledger
 
     ***************************************************************************/
 
-    private const(Output)* findOutput (Hash tx_hash, size_t index)
+    private bool findOutput (Hash tx_hash, size_t index, out Output output)
         @safe nothrow @nogc
     {
         foreach (ref block; this.ledger)
@@ -179,13 +179,17 @@ public class Ledger
                 if (hashFull(tx) == tx_hash)
                 {
                     if (index < tx.outputs.length)
-                        return &tx.outputs[index];
-                    return null;
+                    {
+                        output = tx.outputs[index];
+                        return true;
+                    }
+
+                    return false;
                 }
             }
         }
 
-        return null;
+        return false;
     }
 
 

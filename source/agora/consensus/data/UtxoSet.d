@@ -222,6 +222,24 @@ public class UtxoStore
 
     /***************************************************************************
 
+        Remove a spent UTXO from the store
+
+        Params:
+            key = the key to remove
+
+    ***************************************************************************/
+
+    public void remove (Hash key) nothrow @safe
+    {
+        // in the hot cache
+        if (auto out_ptr = key in this.hot_cache)
+            this.hot_cache.remove(key);
+        else
+            this.cold_store.remove(key);  // it must be in the cold store
+    }
+
+    /***************************************************************************
+
         Add an Output to the map
 
         Params:

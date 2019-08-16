@@ -113,7 +113,7 @@ public class UtxoDb
 
     ***************************************************************************/
 
-    public void opIndexAssign (Hash key, Output output) nothrow @safe
+    public void opIndexAssign (Output output, Hash key) nothrow @safe
     {
         static ubyte[] buffer;
         buffer.length = 0;
@@ -169,26 +169,61 @@ public class GenerationalUtxoMap
     /// Unspent outputs in the database
     private UtxoDb utxo_db;
 
-    /// used to track which Outputs should be moved from utxo_map => utxo_db
-    private Hash[MaxRecentUtxos] most_recent_utxos;
-
-    public Output* opBinaryRight (string op : "in")(Hash key) const nothrow @safe
+    struct UtxoPair
     {
-        if (auto output = key in this.utxo_map)
-            return output;
+        Hash key;
+        Output value;
+    }
 
-        Output output;
+    /// used to track which Outputs should be moved from utxo_map => utxo_db
+    private UtxoPair[] most_recent_utxos;
+
+
+    public bool find (string op : "in")(Hash key, out Output output)
+        @nogc const nothrow @safe
+    {
+        // in the hot cache
+        if (auto out_ptr = key in this.utxo_map)
+        {
+            output = *out_ptr;
+            return true;
+        }
+
+        // in the cold cache
         if (this.utxo_db.find(key, output))
         {
-            this.utxo_db.remove(key);
-
+            return true;
         }
 
-        if (auto output = key in this.utxo_db)
+        return false;
+    }
+
+    /***************************************************************************
+
+        Add an Output to the map
+
+    ***************************************************************************/
+
+    public void opIndexAssign (Hash key, Output output) nothrow @safe
+    {
+        // just added => move to hot cache
+        this.utxo_map[key] = output;
+
+        // make room
+        if (this.most_recent_utxos.length + 1 >= MaxRecentUtxos)
         {
+            auto least_used = most_recent_utxos[0];
+
+            () @trusted {
+                this.most_recent_utxos.dropIndex(0);
+                assumeSafeAppend(this.most_recent_utxos);
+            }();
+
+            // move the utxo to the cold storage
+            this.utxo_db[least_used.key] = least_used.value;
         }
 
-        // must deserialize
+        this.most_recent_utxos ~= UtxoPair(key, output);
     }
 }
 

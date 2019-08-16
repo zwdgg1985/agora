@@ -152,11 +152,11 @@ public class UtxoDb
 
     ***************************************************************************/
 
-    public void remove (Hash key) nothrow
+    public void remove (Hash key) nothrow @safe
     {
         try
         {
-            db.execute("DELETE FROM utxo_map WHERE key = ?", key[]);
+            () @trusted { db.execute("DELETE FROM utxo_map WHERE key = ?", key[]); }();
         }
         catch (Exception ex)
         {

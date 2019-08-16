@@ -166,8 +166,18 @@ public class UtxoDb
 }
 
 ///
-public class GenerationalUtxoMap
+public class UtxoStore
 {
+    ///
+    private struct UtxoPair
+    {
+        /// Key of the UTXO
+        private Hash key;
+
+        /// The Output
+        private Output value;
+    }
+
     /// Change later
     private const MaxRecentUtxos = 1024;
 
@@ -177,16 +187,22 @@ public class GenerationalUtxoMap
     /// Unspent outputs in the database
     private UtxoDb cold_store;
 
-    ///
-    struct UtxoPair
-    {
-        Hash key;
-        Output value;
-    }
-
     /// used to track which Outputs should be moved from hot_cache => cold_store
     private UtxoPair[] most_recent_utxos;
 
+
+    /***************************************************************************
+
+        Find a UTXO with the given key
+
+        Params:
+            key = the key to look up
+            output = will contain the output if it's found
+
+        Returns:
+            true if the Output with the given key was found
+
+    ***************************************************************************/
 
     public bool find (Hash key, out Output output) nothrow @safe
     {
@@ -207,6 +223,10 @@ public class GenerationalUtxoMap
     /***************************************************************************
 
         Add an Output to the map
+
+        Params:
+            key = the key to add
+            output = the output to add
 
     ***************************************************************************/
 
@@ -237,8 +257,10 @@ public class GenerationalUtxoMap
 /// ditto
 public class UtxoSet
 {
+    private UtxoStore utxo_store;
+
     /// Unspent outputs
-    private Output[Hash] utxo_map;
+    //private Output[Hash] utxo_store;
 
     /// Set of consumed outputs during validation
     private Set!Hash used_utxos;
@@ -273,14 +295,14 @@ public class UtxoSet
         foreach (input; tx.inputs)
         {
             auto utxo_hash = hashMulti(input.previous, cast(size_t)input.index);
-            this.utxo_map.remove(utxo_hash);
+            this.utxo_store.remove(utxo_hash);
         }
 
         Hash tx_hash = tx.hashFull();
         foreach (idx, output; tx.outputs)
         {
             auto utxo_hash = hashMulti(tx_hash, cast(size_t)idx);
-            this.utxo_map[utxo_hash] = output;
+            this.utxo_store[utxo_hash] = output;
         }
     }
 
@@ -322,10 +344,9 @@ public class UtxoSet
         if (utxo_hash in this.used_utxos)
             return false;  // double-spend
 
-        if (auto utxo = utxo_hash in this.utxo_map)
+        if (this.utxo_store.find(utxo_hash, output))
         {
             this.used_utxos.put(utxo_hash);
-            output = *utxo;
             return true;
         }
 

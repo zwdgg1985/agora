@@ -13,6 +13,7 @@
 
 module agora.consensus.data.UtxoSet;
 
+import agora.common.Deserializer;
 import agora.common.Hash;
 import agora.common.Serializer;
 import agora.common.Set;
@@ -92,16 +93,22 @@ public class UtxoDb
 
     ***************************************************************************/
 
-    public bool find (string op : "in")(Hash key, out Output output)
-        @nogc const nothrow @safe
+    public bool find (Hash key, out Output output) nothrow @trusted
     {
-        auto results = db.execute("SELECT val FROM utxo_map WHERE key = ?",
-            key[]);
-
-        foreach (row; results)
+        try
         {
-            output = deserialize!Output(row.peek!(ubyte[])(1));
-            return true;
+            auto results = db.execute("SELECT val FROM utxo_map WHERE key = ?",
+                key[]);
+
+            foreach (row; results)
+            {
+                output = deserialize!Output(row.peek!(ubyte[])(1));
+                return true;
+            }
+        }
+        catch (Exception)
+        {
+            assert(0);
         }
 
         return false;
@@ -181,8 +188,7 @@ public class GenerationalUtxoMap
     private UtxoPair[] most_recent_utxos;
 
 
-    public bool find (string op : "in")(Hash key, out Output output)
-        @nogc const nothrow @safe
+    public bool find (Hash key, out Output output) nothrow @safe
     {
         // in the hot cache
         if (auto out_ptr = key in this.hot_cache)

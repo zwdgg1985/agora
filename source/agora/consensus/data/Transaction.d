@@ -305,12 +305,13 @@ public Transaction newCoinbaseTX (PublicKey address, Amount value = Amount(0))
                    the output to
         block_count = the number of blocks that will be created if the
                       returned transactions are added to the ledger
+        spend_amount = the total amount to spend (evenly distributed)
 
 *******************************************************************************/
 
 version (unittest)
 public Transaction[] makeChainedTransactions (KeyPair key_pair,
-    Transaction[] prev_txs, size_t block_count)
+    Transaction[] prev_txs, size_t block_count, ulong spend_amount = 40_000_000)
 {
     import agora.consensus.data.Block;
     import std.conv;
@@ -338,7 +339,7 @@ public Transaction[] makeChainedTransactions (KeyPair key_pair,
     Transaction[] transactions;
 
     // always use the same amount, for simplicity
-    const Amount AmountPerTx = 40_000_000 / Block.TxsInBlock;
+    const Amount AmountPerTx = spend_amount / Block.TxsInBlock;
 
     foreach (idx; 0 .. TxCount)
     {

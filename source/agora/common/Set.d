@@ -210,7 +210,7 @@ unittest
     Note: This is extremely unsafe, it assumes there are no
     other pointers to the internal slice memory.
 */
-private void dropIndex (T) (ref T[] arr, size_t index)
+public void dropIndex (T) (ref T[] arr, size_t index)
 {
     assert(index < arr.length);
     immutable newLen = arr.length - 1;

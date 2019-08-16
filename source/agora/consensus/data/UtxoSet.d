@@ -158,24 +158,26 @@ public class UtxoDb
     }
 }
 
+///
 public class GenerationalUtxoMap
 {
     /// Change later
     private const MaxRecentUtxos = 1024;
 
     /// Most recent unspent outputs
-    private Output[Hash] utxo_map;
+    private Output[Hash] hot_cache;
 
     /// Unspent outputs in the database
-    private UtxoDb utxo_db;
+    private UtxoDb cold_store;
 
+    ///
     struct UtxoPair
     {
         Hash key;
         Output value;
     }
 
-    /// used to track which Outputs should be moved from utxo_map => utxo_db
+    /// used to track which Outputs should be moved from hot_cache => cold_store
     private UtxoPair[] most_recent_utxos;
 
 
@@ -183,17 +185,15 @@ public class GenerationalUtxoMap
         @nogc const nothrow @safe
     {
         // in the hot cache
-        if (auto out_ptr = key in this.utxo_map)
+        if (auto out_ptr = key in this.hot_cache)
         {
             output = *out_ptr;
             return true;
         }
 
         // in the cold cache
-        if (this.utxo_db.find(key, output))
-        {
+        if (this.cold_store.find(key, output))
             return true;
-        }
 
         return false;
     }
@@ -207,9 +207,9 @@ public class GenerationalUtxoMap
     public void opIndexAssign (Hash key, Output output) nothrow @safe
     {
         // just added => move to hot cache
-        this.utxo_map[key] = output;
+        this.hot_cache[key] = output;
 
-        // make room
+        // hot cache is full, move coldest item to the cold store
         if (this.most_recent_utxos.length + 1 >= MaxRecentUtxos)
         {
             auto least_used = most_recent_utxos[0];
@@ -220,9 +220,10 @@ public class GenerationalUtxoMap
             }();
 
             // move the utxo to the cold storage
-            this.utxo_db[least_used.key] = least_used.value;
+            this.cold_store[least_used.key] = least_used.value;
         }
 
+        // add it
         this.most_recent_utxos ~= UtxoPair(key, output);
     }
 }

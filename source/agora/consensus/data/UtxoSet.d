@@ -243,12 +243,12 @@ public class UtxoStore
         Add an Output to the map
 
         Params:
-            key = the key to add
             output = the output to add
+            key = the key to add
 
     ***************************************************************************/
 
-    public void opIndexAssign (Hash key, const ref Output output) nothrow @safe
+    public void opIndexAssign (const ref Output output, Hash key) nothrow @safe
     {
         // just added => move to hot cache
         this.hot_cache[key] = output;

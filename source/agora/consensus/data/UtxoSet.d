@@ -120,7 +120,7 @@ public class UtxoDb
 
     ***************************************************************************/
 
-    public void opIndexAssign (Output output, Hash key) nothrow @safe
+    public void opIndexAssign (const ref Output output, Hash key) nothrow @safe
     {
         static ubyte[] buffer;
         buffer.length = 0;
@@ -248,7 +248,7 @@ public class UtxoStore
 
     ***************************************************************************/
 
-    public void opIndexAssign (Hash key, Output output) nothrow @safe
+    public void opIndexAssign (Hash key, const ref Output output) nothrow @safe
     {
         // just added => move to hot cache
         this.hot_cache[key] = output;

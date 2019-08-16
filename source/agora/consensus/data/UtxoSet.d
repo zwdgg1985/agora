@@ -14,6 +14,7 @@
 module agora.consensus.data.UtxoSet;
 
 import agora.common.Hash;
+import agora.common.Serializer;
 import agora.common.Set;
 import agora.consensus.data.Transaction;
 import agora.consensus.Validation;
@@ -23,6 +24,11 @@ import d2sqlite3.library;
 import d2sqlite3.results;
 import d2sqlite3.sqlite3;
 
+import std.algorithm;
+import std.conv;
+import std.exception;
+import std.file;
+import std.range;
 import std.path;
 
 /*******************************************************************************
@@ -47,15 +53,15 @@ public class UtxoDb
     {
         const db_path = ":memory:";  // todo: replace
 
-        const db_exists = db_path.exists;
-        if (db_exists)
-            logInfo("Loading database from: %s", db_path);
+        //const db_exists = db_path.exists;
+        //if (db_exists)
+        //    logInfo("Loading database from: %s", db_path);
 
         // note: can fail. we may want to just recover txes from the network instead.
         this.db = Database(db_path);
 
-        if (db_exists)
-            logInfo("Loaded database from: %s", db_path);
+        //if (db_exists)
+        //    logInfo("Loaded database from: %s", db_path);
 
         // create the table if it doesn't exist yet
         this.db.execute("CREATE TABLE IF NOT EXISTS utxo_map " ~
@@ -107,7 +113,7 @@ public class UtxoDb
 
     ***************************************************************************/
 
-    public void opIndexAssign (Hash key, Output output) @nogc pure nothrow
+    public void opIndexAssign (Hash key, Output output) nothrow @safe
     {
         static ubyte[] buffer;
         buffer.length = 0;
@@ -121,8 +127,15 @@ public class UtxoDb
         serializePart(output, dg);
 
         () @trusted {
-            db.execute("INSERT INTO utxo_map (key, val) VALUES (?, ?)",
-                key[], buffer);
+            try
+            {
+                db.execute("INSERT INTO utxo_map (key, val) VALUES (?, ?)",
+                    key[], buffer);
+            }
+            catch (Exception ex)
+            {
+                assert(0);
+            }
         }();
     }
 
@@ -132,12 +145,18 @@ public class UtxoDb
 
     ***************************************************************************/
 
-    public void remove (Hash key) @nogc pure nothrow
+    public void remove (Hash key) nothrow
     {
-        db.execute("DELETE FROM utxo_map WHERE key = ?", key[]);
+        try
+        {
+            db.execute("DELETE FROM utxo_map WHERE key = ?", key[]);
+        }
+        catch (Exception ex)
+        {
+            assert(0);
+        }
     }
 }
-
 
 public class GenerationalUtxoMap
 {
@@ -245,25 +264,29 @@ public class UtxoSet
 
         Params:
             tx_hash = the hash of transation
+            index = the index of the output
+            output = will contain the UTXO if found
 
         Return:
-            Return transaction if found. Return null otherwise.
+            Return true if the UTXO was found
 
     ***************************************************************************/
 
-    public const(Output)* findOutput (Hash hash, size_t index) nothrow @safe
+    public bool findOutput (Hash hash, size_t index, out Output output)
+        nothrow @safe
     {
         auto utxo_hash = hashMulti(hash, cast(size_t)index);
 
         if (utxo_hash in this.used_utxos)
-            return null;  // double-spend
+            return false;  // double-spend
 
         if (auto utxo = utxo_hash in this.utxo_map)
         {
             this.used_utxos.put(utxo_hash);
-            return utxo;
+            output = *utxo;
+            return true;
         }
 
-        return null;
+        return false;
     }
 }

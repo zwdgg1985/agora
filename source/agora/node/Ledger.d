@@ -57,8 +57,11 @@ public class Ledger
 
     ***************************************************************************/
 
-    public this (TransactionPool pool, UtxoSet utxo_set)
+    public this (TransactionPool pool, UtxoSet utxo_set = null)
     {
+        // todo: remove
+        version (unittest) utxo_set = new UtxoSet(":memory:");
+
         this.pool = pool;
         this.utxo_set = utxo_set;
         this.addGenesisBlock();

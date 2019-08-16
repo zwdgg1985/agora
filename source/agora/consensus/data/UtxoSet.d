@@ -34,7 +34,7 @@ import std.path;
 
 /*******************************************************************************
 
-    Utxo map backed by SQLite
+    Database of UTXOs backed by SQLite
 
 *******************************************************************************/
 
@@ -68,7 +68,6 @@ public class UtxoDb
         this.db.execute("CREATE TABLE IF NOT EXISTS utxo_map " ~
             "(key BLOB PRIMARY KEY, val BLOB NOT NULL)");
     }
-
 
     /***************************************************************************
 
@@ -191,6 +190,26 @@ public class UtxoStore
     private UtxoPair[] most_recent_utxos;
 
 
+    public this (string utxo_db_path)
+    {
+        this.cold_store = new UtxoDb(utxo_db_path);
+    }
+
+    /***************************************************************************
+
+        When shutting down, we must push all items from
+        the hot cache to the cold store.
+
+    ***************************************************************************/
+
+    public void shutdown ()
+    {
+        foreach (key, output; this.hot_cache)
+            this.cold_store[key] = output;
+
+        this.cold_store.shutdown();
+    }
+
     /***************************************************************************
 
         Find a UTXO with the given key
@@ -289,13 +308,13 @@ public class UtxoSet
         Constructor
 
         Params:
-            utxo_set_path = path to the utxo set
+            utxo_db_path = path to the utxo database
 
     ***************************************************************************/
 
-    public this (in string utxo_set_path)
+    public this (in string utxo_db_path)
     {
-
+        this.utxo_store = new UtxoStore(utxo_db_path);
     }
 
     /***************************************************************************

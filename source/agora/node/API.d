@@ -143,6 +143,24 @@ public interface API
 
     /***************************************************************************
 
+        Get the block at the specified height
+
+        API:
+            GET /block_index
+
+        Params:
+            height = the block height to look up
+
+        Returns:
+            the Block at the provided block height if it exists
+
+    ***************************************************************************/
+
+    public Block getBlockIndex (ulong height);
+
+
+    /***************************************************************************
+
         Get the array of blocks starting from the provided block height.
 
         The block at `block_height` is included in the array.

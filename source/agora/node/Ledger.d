@@ -28,6 +28,7 @@ import agora.node.BlockStorage;
 import vibe.core.log;
 
 import std.algorithm;
+import std.exception;
 
 /// Ditto
 public class Ledger
@@ -253,6 +254,32 @@ public class Ledger
     public ulong getBlockHeight () @safe nothrow
     {
         return this.last_block.header.height;
+    }
+
+    /***************************************************************************
+
+        Get the block at the specified height
+
+        Params:
+            height = the block height to look up
+
+        Returns:
+            the Block at the provided block height if it exists
+
+        Throws:
+            an `Exception` if the block at the specified height does not exist
+
+    ***************************************************************************/
+
+    public Block getBlockIndex (ulong height) @safe
+    {
+        enforce(height <= this.getBlockHeight());
+
+        Block block;
+        if (!this.storage.readBlock(block, height))
+            assert(0);
+
+        return block;
     }
 
     /***************************************************************************

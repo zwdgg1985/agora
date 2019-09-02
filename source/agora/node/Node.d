@@ -162,6 +162,12 @@ public class Node : API
         return this.ledger.getBlockHeight();
     }
 
+    /// GET: /block_index
+    public Block getBlockIndex (ulong height)
+    {
+        return this.ledger.getBlockIndex(height);
+    }
+
     /// GET: /blocks_from
     public const(Block)[] getBlocksFrom (ulong block_height, size_t max_blocks)
         @safe

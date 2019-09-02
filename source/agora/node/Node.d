@@ -23,6 +23,7 @@ import agora.common.Task;
 import agora.common.TransactionPool;
 import agora.consensus.data.Transaction;
 import agora.consensus.data.UTXOSet;
+import agora.consensus.protocol.Nominator;
 import agora.network.NetworkManager;
 import agora.node.API;
 import agora.node.BlockStorage;
@@ -30,6 +31,9 @@ import agora.node.Ledger;
 import agora.utils.PrettyPrinter;
 
 import agora.node.GossipProtocol;
+
+import scpd.types.Stellar_SCP;
+import scpd.types.Utils;
 
 import vibe.core.log;
 import vibe.data.json;
@@ -82,6 +86,9 @@ public class Node : API
     /// Task manager
     private TaskManager taskman;
 
+    /// Nominator instance
+    private Nominator nominator;
+
 
     /// Ctor
     public this (const Config config)
@@ -105,9 +112,12 @@ public class Node : API
     public void start ()
     {
         logInfo("Doing network discovery..");
-        this.network.discover();
-
+        auto peers = this.network.discover();
         this.network.retrieveLatestBlocks(this.ledger);
+
+        auto quorum_set = toSCPQuorumSet(this.config.quorum);
+        this.nominator = new Nominator(this.ledger,
+            this.config.node.key_pair.address, peers, quorum_set, this.taskman);
     }
 
     /***************************************************************************
@@ -175,7 +185,7 @@ public class Node : API
 
     public bool receiveEnvelope (SCPEnvelope envelope)
     {
-        return true;
+        return this.nominator.receiveEnvelope(envelope);
     }
 
     /// GET: /has_transaction_hash

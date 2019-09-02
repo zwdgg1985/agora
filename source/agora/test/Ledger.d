@@ -25,6 +25,34 @@ import agora.consensus.data.Transaction;
 import agora.consensus.Genesis;
 import agora.test.Base;
 
+/// test the nomination protocol
+unittest
+{
+    import std.algorithm;
+    import std.range;
+    import core.time;
+
+    const NodeCount = 2;
+    auto network = makeTestNetwork(NetworkTopology.Simple, NodeCount, true,
+        100, 20, 100);  // reduce timeout to 100 msecs
+
+    import vibe.core.log;
+    setLogLevel(LogLevel.info);
+
+    network.start();
+    scope(exit) network.shutdown();
+    assert(network.getDiscoveredNodes().length == NodeCount);
+
+    auto nodes = network.apis.values;
+    auto node_1 = nodes[0];
+
+    // create one block
+    auto txs = makeChainedTransactions(getGenesisKeyPair(), null, 1);
+    txs.each!(tx => node_1.putTransaction(tx));
+
+    nodes.containSameBlocks(1).retryFor(4.seconds);
+}
+
 version (none):
 
 ///

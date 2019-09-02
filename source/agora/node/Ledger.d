@@ -22,6 +22,7 @@ import agora.consensus.data.Transaction;
 import agora.consensus.data.UTXOSet;
 import agora.consensus.Genesis;
 import agora.consensus.Validation;
+import agora.consensus.protocol.Nominator;
 import agora.node.API;
 import agora.node.BlockStorage;
 
@@ -45,6 +46,7 @@ public class Ledger
     /// UTXO set
     private UTXOSet utxo_set;
 
+    public Nominator nominator;
 
     /***************************************************************************
 
@@ -74,6 +76,64 @@ public class Ledger
         if (!this.storage.readLastBlock(this.last_block))
             assert(0);
     }
+
+    public void prepareSCP ()
+    {
+        // Restore the SCP state
+        // We should never have an empty SCP state, even in tests,
+        // because there is *always* a genesis block used to segment
+        // the networks.
+        this.restoreSCPState();
+        assert(!this.nominator.scp.empty());
+    }
+
+    import agora.common.crypto.Key;
+    PublicKey node_id;
+
+    /*******************************************************************************
+
+        Restore SCP's internal state based on the serialized Blockchain
+
+    *******************************************************************************/
+
+    private void restoreSCPState ()
+    {
+        import agora.common.Serializer;
+        import scpd.types.Stellar_SCP;
+        import scpd.types.Utils;
+
+        //Value gen_value = GenesisBlock.serializeFull().toVec();
+
+        import scpd.types.Stellar_types : StellarHash = Hash;
+        import scpd.types.Stellar_types;
+
+        StellarHash gH;
+        Value gen_value = gH.toVec();
+
+        auto key = StellarHash(this.node_id[]);
+        auto pub_key = NodeID(key);
+
+        // Set Genesis
+        SCPStatement genesis =
+        {
+            nodeID: pub_key,
+            slotIndex: 0,
+            pledges: {
+                type_: SCPStatementType.SCP_ST_EXTERNALIZE,
+                externalize_: {
+                    commit: {
+                        counter: 0,
+                        value: gen_value,
+                    },
+                    nH: 0,
+                    //commitQuorumSetHash: Hash.init,
+                },
+            },
+        };
+        SCPEnvelope env = SCPEnvelope(genesis);
+        this.nominator.scp.getSlot(0, true).ptr.setStateFromEnvelope(env);
+    }
+
 
     /***************************************************************************
 
@@ -119,6 +179,8 @@ public class Ledger
 
     ***************************************************************************/
 
+    public bool is_leader;
+
     public bool acceptTransaction (Transaction tx) @safe
     {
         if (!this.isValidTransaction(tx))
@@ -128,8 +190,13 @@ public class Ledger
         }
 
         this.pool.add(tx);
-        if (this.pool.length >= Block.TxsInBlock)
-            this.tryMakingBlock();
+
+        if (this.is_leader &&
+            this.pool.length >= Block.TxsInBlock)
+        {
+            assert(this.nominator !is null);  // sanity check
+            this.nominator.proposeNewBlock();
+        }
 
         return true;
     }
@@ -144,9 +211,26 @@ public class Ledger
 
     ***************************************************************************/
 
-    private void addValidatedBlock (const ref Block block) nothrow @safe
+    public void addValidatedBlock (const ref Block block) nothrow @safe
     {
+        // add new UTXOs
         block.txs.each!(tx => this.utxo_set.updateUtxoCache(tx));
+
+        // remove the TXs from the Pool
+        block.txs.each!(
+            (tx)
+            {
+                try
+                {
+                    this.pool.remove(tx.hashFull());
+                }
+                catch (Exception ex)
+                {
+                    // this OP must not fail
+                    assert(0);
+                }
+            }
+        );
 
         if (!this.storage.saveBlock(block))
             assert(0);
@@ -165,10 +249,19 @@ public class Ledger
         over the pool. If there are not enough valid transactions,
         a block will not be created.
 
+        Params:
+            block = will contain the block if one was created
+
+        Returns:
+            true if a block was created with enough valid transactions
+
     ***************************************************************************/
 
-    private void tryMakingBlock () @safe
+    public bool createBlock (out Block block) @safe
     {
+        if (this.pool.length < Block.TxsInBlock)
+            return false;
+
         Hash[] hashes;
         Transaction[] txs;
 
@@ -190,13 +283,13 @@ public class Ledger
         }
 
         if (txs.length != Block.TxsInBlock)
-            return;  // not enough valid txs
+            return false;  // not enough valid txs
 
-        auto block = makeNewBlock(this.last_block, txs);
-        if (!this.acceptBlock(block))  // txs should be valid
-            assert(0);
+        block = makeNewBlock(this.last_block, txs);
+        if (!this.isValidBlock(block))
+            assert(0);  // sanity check
 
-        hashes.each!(hash => this.pool.remove(hash));
+        return true;
     }
 
     /***************************************************************************
@@ -254,6 +347,18 @@ public class Ledger
     public ulong getBlockHeight () @safe nothrow
     {
         return this.last_block.header.height;
+    }
+
+    /***************************************************************************
+
+        Returns:
+            the last block
+
+    ***************************************************************************/
+
+    public Block getLastBlock () @safe nothrow
+    {
+        return this.last_block;
     }
 
     /***************************************************************************

@@ -73,6 +73,25 @@ Slot::setStateFromEnvelope(SCPEnvelope const& e)
     }
     else
     {
+        if (e.statement.nodeID == getSCP().getLocalNodeID())
+        {
+
+        }
+        else
+        {
+            assert(0);
+        }
+
+        if (e.statement.slotIndex == mSlotIndex)
+        {
+
+        }
+        else
+        {
+            assert(0);
+        }
+
+        assert(0);
         if (Logging::logTrace("SCP"))
             CLOG(TRACE, "SCP")
                 << "Slot::setStateFromEnvelope invalid envelope"

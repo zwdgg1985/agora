@@ -95,6 +95,18 @@ public class NetworkManager
         this.banman = this.getBanManager(banman_conf);
     }
 
+    /***************************************************************************
+
+        Returns:
+            the map of connected network clients
+
+    ***************************************************************************/
+
+    public NetworkClient[PublicKey] getClients ()
+    {
+        return this.peers;
+    }
+
     /// try to discover the network until we found
     /// all the validator nodes from our quorum set.
     public void discover ()

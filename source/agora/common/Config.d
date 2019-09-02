@@ -19,6 +19,9 @@ import agora.common.BanManager;
 import agora.common.crypto.Key;
 import agora.common.Set;
 
+import scpd.types.Stellar_SCP;
+import scpd.types.Utils;
+
 import dyaml.node;
 
 import vibe.core.log;
@@ -30,7 +33,6 @@ import std.format;
 import std.getopt;
 import std.range;
 import std.traits;
-
 
 /// Command-line arguments
 public struct CommandLine
@@ -63,8 +65,8 @@ public struct Config
     /// The list of DNS FQDN seeds for use with network discovery
     public immutable string[] dns_seeds;
 
-    /// The quorum slice config
-    public immutable QuorumConfig[] quorums;
+    /// The quorum config
+    public QuorumConfig quorum;
 
     /// Logging config
     public LoggingConfig logging;
@@ -75,6 +77,9 @@ public struct NodeConfig
 {
     static assert(!hasUnsharedAliasing!(typeof(this)),
         "Type must be shareable accross threads");
+
+    /// Whether this is the node which nominates blocks (to be removed)
+    public bool is_leader;
 
     /// Is this a validator node
     public bool is_validator;
@@ -244,7 +249,7 @@ private Config parseConfigFileImpl (CommandLine cmdln)
         node : parseNodeConfig(root["node"]),
         network : assumeUnique(parseSequence("network")),
         dns_seeds : assumeUnique(parseSequence("dns", true)),
-        quorums : assumeUnique(parseQuorumSection(root["quorum"]))
+        quorum : parseQuorumSection(root["quorum"])
     };
 
     enforce(conf.network.length > 0, "Network section is empty");
@@ -259,8 +264,7 @@ private Config parseConfigFileImpl (CommandLine cmdln)
     conf.logging.log_level
         = root["logging"]["level"].as!string.to!LogLevel;
 
-    enforce(conf.quorums.length != 0);
-    logInfo("Quorum set: %s", conf.quorums);
+    logInfo("Quorum set: %s", conf.quorum);
 
     return conf;
 }
@@ -268,6 +272,7 @@ private Config parseConfigFileImpl (CommandLine cmdln)
 /// Parse the node config section
 private NodeConfig parseNodeConfig (Node node)
 {
+    auto is_leader = node["is_leader"].as!bool;
     auto is_validator = node["is_validator"].as!bool;
     auto min_listeners = node["min_listeners"].as!size_t;
     auto max_listeners = node["max_listeners"].as!size_t;
@@ -292,6 +297,7 @@ private NodeConfig parseNodeConfig (Node node)
 
     NodeConfig conf =
     {
+        is_leader : is_leader,
         is_validator : is_validator,
         min_listeners : min_listeners,
         max_listeners : max_listeners,
@@ -321,16 +327,17 @@ private BanManager.Config parseBanManagerConfig (Node node)
 }
 
 /// Parse the quorum config section
-private QuorumConfig[] parseQuorumSection (Node quorums_root)
+private QuorumConfig parseQuorumSection (Node quorums_root)
 {
+    // The parsed quorum sections before sub-quorums are looked-up
     struct PreQuorum
     {
         string threshold;
         PublicKey[] nodes;
-        string[] sub_quorums;  // they're looked up later
+        string[] sub_quorums;
     }
 
-    PreQuorum[string] pre_quorums;
+    PreQuorum[string] sub_quorums;
 
     foreach (Node entry; quorums_root)
     {
@@ -346,8 +353,13 @@ private QuorumConfig[] parseQuorumSection (Node quorums_root)
                 quorum.nodes ~= PublicKey.fromString(node);
         }
 
-        pre_quorums[name] = quorum;
+        sub_quorums[name] = quorum;
     }
+
+    auto root_quorum = "root" in sub_quorums;
+    enforce(root_quorum !is null,
+        "There must be one root quorum with the name 'root'");
+    sub_quorums.remove("root");
 
     float parseThreshold (string input)
     {
@@ -358,15 +370,18 @@ private QuorumConfig[] parseQuorumSection (Node quorums_root)
             return 100.0;
     }
 
-    QuorumConfig toQuorum (string temp_name, PreQuorum temp_quorum)
+    QuorumConfig toQuorum (string name, PreQuorum pre_quorum)
     {
-        auto name = temp_name;
-        auto threshold = parseThreshold(temp_quorum.threshold);
-        auto nodes = temp_quorum.nodes;
+        auto threshold = parseThreshold(pre_quorum.threshold);
+        auto nodes = pre_quorum.nodes;
 
         QuorumConfig[] quorums;
-        foreach (string temp; temp_quorum.sub_quorums)
-            quorums ~= toQuorum(temp, pre_quorums[temp]);
+        foreach (string sub_name; pre_quorum.sub_quorums)
+        {
+            auto sub_quorum = sub_name in sub_quorums;
+            enforce(sub_quorum !is null, "Quorum '%s' not found!", sub_name);
+            quorums ~= toQuorum(sub_name, *sub_quorum);
+        }
 
         QuorumConfig quorum =
         {
@@ -379,9 +394,70 @@ private QuorumConfig[] parseQuorumSection (Node quorums_root)
         return quorum;
     }
 
-    QuorumConfig[] quorums;
-    foreach (string temp_name, PreQuorum temp_quorum; pre_quorums)
-        quorums ~= toQuorum(temp_name, temp_quorum);
+    return toQuorum("root", *root_quorum);
+}
 
-    return quorums;
+/*******************************************************************************
+
+    Convert a QuorumConfig to the SCPQorum which the SCP protocol understands
+
+    Params:
+        quorum_conf = the quorum config
+
+    Returns:
+        `SCPQuorumSet` instance
+
+*******************************************************************************/
+
+public SCPQuorumSet toSCPQuorumSet ( QuorumConfig quorum_conf )
+{
+    SCPQuorumSet quorum = SCPQuorumSet(1);
+    quorum.threshold = getThreshold(quorum_conf.threshold,
+        quorum_conf.nodes.length + quorum_conf.quorums.length);
+
+    foreach (node; quorum_conf.nodes)
+    {
+        import scpd.types.Stellar_types : StellarHash = Hash;
+        import scpd.types.Stellar_types;
+        auto key = StellarHash(node[]);
+        auto pub_key = NodeID(key);
+        quorum.validators.push_back(pub_key);
+    }
+
+    foreach (sub_quorum; quorum_conf.quorums)
+    {
+        auto scp_quorum = toSCPQuorumSet(sub_quorum);
+        quorum.innerSets.push_back(scp_quorum);
+    }
+
+    return quorum;
+}
+
+/*******************************************************************************
+
+    Return the threshold in an N of M form, rounding up (same as Stellar)
+
+    Params:
+        percentage = the threshold in percentage
+        count = the M in N of M
+
+    Returns:
+        The N of M based on the percentage
+
+*******************************************************************************/
+
+private uint getThreshold ( float percentage, size_t count )
+{
+    return cast(uint)(((count * percentage - 1) / 100) + 1);
+}
+
+///
+unittest
+{
+    assert(getThreshold(10.0, 10) == 1);
+    assert(getThreshold(50.0, 10) == 5);
+    assert(getThreshold(100.0, 10) == 10);
+    assert(getThreshold(33.3, 10) == 4);  // round up
+    assert(getThreshold(100.0, 1) == 1);
+    assert(getThreshold(1, 1) == 1);  // round up
 }

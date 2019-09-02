@@ -437,12 +437,17 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
 
             NodeConfig node_conf =
             {
+                is_leader : idx == 0,
+                is_validator : true,
                 key_pair : key_pairs[idx],
                 retry_delay : retry_delay, // msecs
                 max_retries : max_retries,
                 timeout : timeout,
                 min_listeners : nodes - 1,
             };
+
+            import std.stdio;
+            writefln("Node %s: %s", idx, node_conf.key_pair.address);
 
             node_configs ~= node_conf;
         }
@@ -452,6 +457,8 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
             // note: cannot add our own key as a validator (there is a safety check)
             // todo: add this check in the unittests
             auto other_pairs = key_pairs[0 .. idx] ~ key_pairs[idx + 1 .. $];
+            auto peer_keys = assumeUnique(other_pairs.map!(k => k.address).array);
+            auto peer_key_strings = assumeUnique(other_pairs.map!(k => k.address.toString()).array);
 
             BanManager.Config ban_conf =
             {
@@ -459,13 +466,14 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
                 ban_duration: 300
             };
 
+            QuorumConfig quorum = { nodes : peer_keys };
+
             Config conf =
             {
                 banman : ban_conf,
                 node : node_configs[idx],
-                network : configure_network
-                    ? assumeUnique(other_pairs.map!(k => k.address.toString()).array)
-                    : null,
+                network : configure_network ? peer_key_strings : null,
+                quorum : quorum
             };
 
             configs ~= conf;

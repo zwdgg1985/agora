@@ -65,27 +65,27 @@ unittest
         last_txs = txs;
     }
 
-    // get all the blocks (including genesis block)
-    auto blocks = node_1.getBlocksFrom(0, 101);
+    //// get all the blocks (including genesis block)
+    //auto blocks = node_1.getBlocksFrom(0, 101);
 
-    assert(blocks[0] == GenesisBlock);
+    //assert(blocks[0] == GenesisBlock);
 
-    // exclude genesis block
-    assert(blocks[1 .. $].enumerate.each!((idx, block) =>
-        assert(block.txs == block_txes[idx])
-    ));
+    //// exclude genesis block
+    //assert(blocks[1 .. $].enumerate.each!((idx, block) =>
+    //    assert(block.txs == block_txes[idx])
+    //));
 
-    blocks = node_1.getBlocksFrom(0, 1);
-    assert(blocks.length == 1 && blocks[0] == GenesisBlock);
+    //blocks = node_1.getBlocksFrom(0, 1);
+    //assert(blocks.length == 1 && blocks[0] == GenesisBlock);
 
-    blocks = node_1.getBlocksFrom(10, 1);
-    assert(blocks.length == 1 && blocks[0].txs == block_txes[9]);  // -1 as genesis block not included
+    //blocks = node_1.getBlocksFrom(10, 1);
+    //assert(blocks.length == 1 && blocks[0].txs == block_txes[9]);  // -1 as genesis block not included
 
-    // over the limit => return up to the highest block
-    assert(node_1.getBlocksFrom(0, 100).length == 11);
+    //// over the limit => return up to the highest block
+    //assert(node_1.getBlocksFrom(0, 100).length == 11);
 
-    // higher index than available => return nothing
-    assert(node_1.getBlocksFrom(100, 10).length == 0);
+    //// higher index than available => return nothing
+    //assert(node_1.getBlocksFrom(100, 10).length == 0);
 }
 
 version(none):

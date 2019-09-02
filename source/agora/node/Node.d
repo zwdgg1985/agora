@@ -22,12 +22,15 @@ import agora.common.Data;
 import agora.common.TransactionPool;
 import agora.consensus.data.Transaction;
 import agora.consensus.data.UTXOSet;
+import agora.consensus.protocol.Nominator;
 import agora.network.NetworkManager;
 import agora.node.API;
 import agora.node.BlockStorage;
 import agora.node.Ledger;
-
 import agora.node.GossipProtocol;
+
+import scpd.types.Stellar_SCP;
+import scpd.types.Utils;
 
 import vibe.core.log;
 import vibe.data.json;
@@ -74,8 +77,12 @@ public class Node : API
     ///
     private Ledger ledger;
 
+    /// Nominator instance
+    private Nominator nominator;
+
     /// Blockstorage
     private IBlockStorage storage;
+
 
     /// Ctor
     public this (const Config config)
@@ -89,6 +96,10 @@ public class Node : API
         this.pool = this.getPool(config.node.data_dir);
         this.utxo_set = this.getUtxoSet(config.node.data_dir);
         this.ledger = new Ledger(this.pool, this.utxo_set, this.storage);
+
+        // todo: remove later
+        this.ledger.is_leader = this.config.node.is_leader;
+
         this.gossip = new GossipProtocol(this.network, this.ledger);
         this.exception = new RestException(
             400, Json("The query was incorrect"), string.init, int.init);
@@ -99,6 +110,23 @@ public class Node : API
     {
         logInfo("Doing network discovery..");
         this.network.discover();
+
+        import scpd.types.Stellar_types : StellarHash = Hash;
+
+        auto quorum_set = toSCPQuorumSet(this.config.quorum);
+        const bs = ByteSlice.make(XDRToOpaque(quorum_set));
+        auto quorum_hash = sha256(bs);
+
+        SCPQuorumSet[StellarHash] quorum_cache;
+        quorum_cache[quorum_hash] = quorum_set;
+
+        this.nominator = new Nominator(this.ledger,
+            this.config.node.key_pair.address, this.network.getClients(),
+            quorum_set, quorum_cache);
+
+        this.ledger.nominator = this.nominator;
+        this.ledger.node_id = this.config.node.key_pair.address;
+        this.ledger.prepareSCP();
 
         this.network.retrieveLatestBlocks(this.ledger);
     }
@@ -148,6 +176,11 @@ public class Node : API
     public override void putTransaction (Transaction tx) @safe
     {
         this.gossip.receiveTransaction(tx);
+    }
+
+    public bool receiveEnvelope (SCPEnvelope envelope)
+    {
+        return this.nominator.receiveEnvelope(envelope);
     }
 
     /// GET: /has_transaction_hash

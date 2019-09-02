@@ -17,7 +17,8 @@ import scpd.Cpp;
 import scpd.types.Stellar_SCP;
 import scpd.types.Stellar_types;
 import scpd.types.XDRBase;
-
+import scpd.scp.SCP;
+import scpd.scp.SCPDriver;
 
 /// Utility function for SCP
 public inout(opaque_vec!()) toVec (scope ref inout(Hash) data)
@@ -88,3 +89,7 @@ extern(C++, `stellar`)
         }
     }
 }
+
+/// SCP constructor wrapper
+SCP* createSCP (SCPDriver driver, ref const(NodeID) nodeID, bool isValidator,
+    ref const(SCPQuorumSet) qSetLocal);

@@ -22,6 +22,8 @@ import agora.common.Task;
 import agora.consensus.data.Transaction;
 import agora.node.API;
 
+import scpd.types.Stellar_SCP;
+
 import vibe.core.log;
 
 import std.algorithm;
@@ -152,6 +154,31 @@ class NetworkClient
 
             this.attemptRequest(this.api.putTransaction(tx), null);
         });
+    }
+
+
+    /***************************************************************************
+
+        Sends an envelope, and returns a status code if the target node
+        has processed the envelope with no errors (todo: this is blocking..)
+
+        Returns:
+            true if the client successfully processed the envelope
+
+    ***************************************************************************/
+
+    public bool sendEnvelope (ref SCPEnvelope envelope) nothrow
+    {
+        try
+        {
+            return this.attemptRequest(this.api.receiveEnvelope(envelope),
+                this.exception);
+        }
+        catch (Exception ex)
+        {
+            logDebug("Failed to send envelope: %s", ex.message());
+            return false;
+        }
     }
 
     /***************************************************************************

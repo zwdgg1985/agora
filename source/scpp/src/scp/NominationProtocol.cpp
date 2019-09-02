@@ -492,10 +492,29 @@ NominationProtocol::nominate(Value const& value, Value const& previousValue,
         auto ins = mVotes.insert(value);
         if (ins.second)
         {
+            CLOG(DEBUG, "SCP") << "NominationProtocol::nominate. Leader added number: " << __LINE__;
             updated = true;
         }
         nominatingValue = value;
     }
+    else
+    {
+        // CLOG(INFO, "SCP") << "LocalNode::LocalNode"
+        //     << "@" << KeyUtils::toShortString(mNodeID)
+        //     << " qSet: " << hexAbbrev(mQSetHash);
+
+
+        CLOG(DEBUG, "SCP") << "NominationProtocol::nominate. We could not find us in the leaders!! "
+            << KeyUtils::toShortString(mSlot.getLocalNode()->getNodeID());
+        for (auto const& rl : mRoundLeaders)
+        {
+            CLOG(DEBUG, "SCP")
+                << "    leader " << mSlot.getSCPDriver().toShortString(rl);
+        }
+
+        // CLOG(DEBUG, "SCP") << "Our ID is " << mSlot.getLocalNode()->getNodeID();
+    }
+
     // add a few more values from other leaders
     for (auto const& leader : mRoundLeaders)
     {

@@ -13,7 +13,7 @@
 
 module agora.test.NetworkManager;
 
-version (unittest):
+version (none):
 
 import agora.consensus.data.Transaction;
 import agora.consensus.Genesis;

@@ -14,7 +14,7 @@
 
 module agora.test.BanManager;
 
-version (unittest):
+version (none):
 
 import agora.common.crypto.Key;
 import agora.common.Data;
@@ -25,7 +25,7 @@ import agora.consensus.Genesis;
 import agora.test.Base;
 
 /// test node banning after putTransaction fails a number of times
-unittest
+version (none) unittest
 {
     import core.thread;
     import std.algorithm;

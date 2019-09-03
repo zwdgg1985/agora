@@ -86,6 +86,8 @@ unittest
     assert(node_1.getBlocksFrom(100, 10).length == 0);
 }
 
+version(none):
+
 /// test catch-up phase during booting
 unittest
 {

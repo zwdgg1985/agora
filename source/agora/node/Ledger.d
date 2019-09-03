@@ -258,6 +258,8 @@ public class Ledger
     }
 }
 
+version(none):
+
 ///
 unittest
 {

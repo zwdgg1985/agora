@@ -36,6 +36,8 @@ unittest
 
     const NodeCount = 4;
     auto network = makeTestNetwork(NetworkTopology.Simple, NodeCount);
+    import vibe.core.log;
+    setLogLevel(LogLevel.debug_);
     network.start();
     scope(exit) network.shutdown();
     assert(network.getDiscoveredNodes().length == NodeCount);

@@ -16,6 +16,7 @@ module agora.node.Ledger;
 import agora.common.Amount;
 import agora.common.Data;
 import agora.common.Hash;
+import agora.common.Set;
 import agora.common.TransactionPool;
 import agora.consensus.data.Block;
 import agora.consensus.data.Transaction;
@@ -178,10 +179,15 @@ public class Ledger
         Hash[] hashes;
         Transaction[] txs;
 
-        auto utxo_finder = this.utxo_set.getUTXOFinder();
+        static Set!Hash used_utxos;
+        if (used_utxos is null)
+            used_utxos = getInitializedHash();
+
+        auto finder = this.utxo_set.prepare(used_utxos);
+
         foreach (hash, tx; this.pool)
         {
-            if (tx.isValid(utxo_finder))
+            if (tx.isValid(&finder.findUTXO))
             {
                 hashes ~= hash;
                 txs ~= tx;
@@ -221,7 +227,12 @@ public class Ledger
 
     public bool isValidTransaction (const ref Transaction tx) nothrow @safe
     {
-        return tx.isValid(this.utxo_set.getUTXOFinder());
+        static Set!Hash used_utxos;
+        if (used_utxos is null)
+            used_utxos = getInitializedHash();
+
+        auto finder = this.utxo_set.prepare(used_utxos);
+        return tx.isValid(&finder.findUTXO);
     }
 
     /***************************************************************************
@@ -238,8 +249,14 @@ public class Ledger
 
     public string validateBlock (const ref Block block) nothrow @safe
     {
+        static Set!Hash used_utxos;
+        if (used_utxos is null)
+            used_utxos = getInitializedHash();
+
+        auto finder = this.utxo_set.prepare(used_utxos);
+
         return block.isInvalidReason(last_block.header.height,
-            last_block.header.hashFull, this.utxo_set.getUTXOFinder());
+            last_block.header.hashFull, &finder.findUTXO);
     }
 
     /***************************************************************************
@@ -314,6 +331,26 @@ public class Ledger
         if (index >= block.txs.length)
             return null;
         return block.getMerklePath(index);
+    }
+
+    /***************************************************************************
+
+        Returns:
+            an initialized but empty set, to ensure it behaves like a reference
+
+    ***************************************************************************/
+
+    private static Set!Hash getInitializedHash () nothrow @safe
+    out (result)
+    {
+        assert(result !is null);
+    }
+    do
+    {
+        Set!Hash hash;
+        hash.put(Hash.init);
+        hash.remove(Hash.init);
+        return hash;
     }
 }
 

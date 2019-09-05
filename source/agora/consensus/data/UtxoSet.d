@@ -29,11 +29,57 @@ import std.file;
 /// ditto
 public class UTXOSet
 {
+    /***************************************************************************
+
+        Struct returned by getUTXOFinder. It should be initialized with a unique
+        set for every location where the findUTXO delegate is used,
+        to ensure the method is re-entrant.
+
+    ***************************************************************************/
+
+    public static struct Finder
+    {
+        /// Utxo cache backed by a database
+        private UTXODB utxo_db;
+
+        /// Keeps track of spent outputs during the validation of a Tx / Block
+        private Set!Hash used_utxos;
+
+
+        /***************************************************************************
+
+            Find an unspent Output in the UTXO set.
+
+            Params:
+                hash = the hash of transation
+                index = the index of the output
+                output = will contain the UTXO if found
+
+            Return:
+                Return true if the UTXO was found
+
+        ***************************************************************************/
+
+        public bool findUTXO (Hash hash, size_t index, out Output output)
+            nothrow @safe
+        {
+            auto utxo_hash = getHash(hash, index);
+
+            if (utxo_hash in this.used_utxos)
+                return false;  // double-spend
+
+            if (this.utxo_db.find(utxo_hash, output))
+            {
+                this.used_utxos.put(utxo_hash);
+                return true;
+            }
+
+            return false;
+        }
+    }
+
     /// Utxo cache backed by a database
     private UTXODB utxo_db;
-
-    /// Keeps track of spent outputs during the validation of a Tx / Block
-    private Set!Hash used_utxos;
 
 
     /***************************************************************************
@@ -63,6 +109,28 @@ public class UTXOSet
 
     /***************************************************************************
 
+        Prepare tracking double-spent transactions and
+        return the UTXOFinder delegate
+
+        Params:
+            used_utxos = the set to use to keep track of used UTXOs.
+                         the caller should make sure to use a reference
+                         to a different unique set if it wants this function
+                         to be re-entrant.
+
+        Returns:
+            the UTXOFinder delegate
+
+    ***************************************************************************/
+
+    public Finder prepare (Set!Hash used_utxos) @trusted nothrow
+    {
+        used_utxos.clear();
+        return Finder(this.utxo_db, used_utxos);
+    }
+
+    /***************************************************************************
+
         Add all of a transaction's outputs to the Utxo set,
         and remove the spent outputs in the transaction from the set.
 
@@ -85,53 +153,6 @@ public class UTXOSet
             auto utxo_hash = getHash(tx_hash, idx);
             this.utxo_db[utxo_hash] = output;
         }
-    }
-
-    /***************************************************************************
-
-        Prepare tracking double-spent transactions and
-        return the UTXOFinder delegate
-
-        Returns:
-            the UTXOFinder delegate
-
-    ***************************************************************************/
-
-    public UTXOFinder getUTXOFinder () @trusted nothrow
-    {
-        this.used_utxos.clear();
-        return &this.findUTXO;
-    }
-
-    /***************************************************************************
-
-        Find an unspent Output in the UTXO set.
-
-        Params:
-            hash = the hash of transation
-            index = the index of the output
-            output = will contain the UTXO if found
-
-        Return:
-            Return true if the UTXO was found
-
-    ***************************************************************************/
-
-    private bool findUTXO (Hash hash, size_t index, out Output output)
-        nothrow @safe
-    {
-        auto utxo_hash = getHash(hash, index);
-
-        if (utxo_hash in this.used_utxos)
-            return false;  // double-spend
-
-        if (this.utxo_db.find(utxo_hash, output))
-        {
-            this.used_utxos.put(utxo_hash);
-            return true;
-        }
-
-        return false;
     }
 
     /***************************************************************************

@@ -79,6 +79,9 @@ public struct NodeConfig
     static assert(!hasUnsharedAliasing!(typeof(this)),
         "Type must be shareable accross threads");
 
+    /// Whether this is the node which nominates blocks (to be removed)
+    public bool is_leader;
+
     /// Is this a validator node
     public bool is_validator;
 
@@ -264,6 +267,7 @@ private Config parseConfigFileImpl (CommandLine cmdln)
 /// Parse the node config section
 private NodeConfig parseNodeConfig (Node node)
 {
+    auto is_leader = node["is_leader"].as!bool;
     auto is_validator = node["is_validator"].as!bool;
     auto min_listeners = node["min_listeners"].as!size_t;
     auto max_listeners = node["max_listeners"].as!size_t;
@@ -284,6 +288,7 @@ private NodeConfig parseNodeConfig (Node node)
 
     NodeConfig conf =
     {
+        is_leader : is_leader,
         is_validator : is_validator,
         min_listeners : min_listeners,
         max_listeners : max_listeners,

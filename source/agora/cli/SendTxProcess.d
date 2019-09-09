@@ -214,7 +214,7 @@ public int sendTxProcess (string[] args, ref string[] outputs,
 }
 
 /// Test of send transaction
-unittest
+version (none) unittest
 {
     class TestCLINode : API
     {

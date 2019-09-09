@@ -148,7 +148,7 @@ public class Node : API
 
     public override void putTransaction (Transaction tx) @safe
     {
-        logDebug("Receveid Transaction: %s", prettify(tx));
+        //logDebug("Receveid Transaction: %s", prettify(tx));
         this.gossip.receiveTransaction(tx);
     }
 

@@ -19,6 +19,9 @@ import agora.common.BanManager;
 import agora.common.crypto.Key;
 import agora.common.Set;
 
+import scpd.types.Stellar_SCP;
+import scpd.types.Utils;
+
 import dyaml.node;
 
 import vibe.core.log;
@@ -434,4 +437,58 @@ unittest
     assert(getThreshold(33.3, 10) == 4);  // round up
     assert(getThreshold(100.0, 1) == 1);
     assert(getThreshold(1, 1) == 1);  // round up
+}
+
+/*******************************************************************************
+
+    Convert a QuorumConfig to the SCPQorum which the SCP protocol understands
+
+    Params:
+        quorum_conf = the quorum config
+
+    Returns:
+        `SCPQuorumSet` instance
+
+*******************************************************************************/
+
+public SCPQuorumSet toSCPQuorumSet ( QuorumConfig quorum_conf )
+{
+    import std.conv;
+    import scpd.types.Stellar_types : StellarHash = Hash, NodeID;
+
+    SCPQuorumSet quorum;
+    quorum.threshold = quorum_conf.threshold.to!uint;
+
+    foreach (node; quorum_conf.nodes)
+    {
+        auto key = StellarHash(node[]);
+        auto pub_key = NodeID(key);
+        quorum.validators.push_back(pub_key);
+    }
+
+    foreach (sub_quorum; quorum_conf.quorums)
+    {
+        auto scp_quorum = toSCPQuorumSet(sub_quorum);
+        quorum.innerSets.push_back(scp_quorum);
+    }
+
+    return quorum;
+}
+
+///
+unittest
+{
+    auto quorum = QuorumConfig(2,
+        [PublicKey.fromString("GBFDLGQQDDE2CAYVELVPXUXR572ZT5EOTMGJQBPTIHSLPEOEZYQQCEWN"),
+         PublicKey.fromString("GBYK4I37MZKLL4A2QS7VJCTDIIJK7UXWQWKXKTQ5WZGT2FPCGIVIQCY5")],
+        [QuorumConfig(2,
+            [PublicKey.fromString("GBFDLGQQDDE2CAYVELVPXUXR572ZT5EOTMGJQBPTIHSLPEOEZYQQCEWN"),
+             PublicKey.fromString("GBYK4I37MZKLL4A2QS7VJCTDIIJK7UXWQWKXKTQ5WZGT2FPCGIVIQCY5")],
+            [QuorumConfig(2,
+                [PublicKey.fromString("GBFDLGQQDDE2CAYVELVPXUXR572ZT5EOTMGJQBPTIHSLPEOEZYQQCEWN"),
+                 PublicKey.fromString("GBYK4I37MZKLL4A2QS7VJCTDIIJK7UXWQWKXKTQ5WZGT2FPCGIVIQCY5"),
+                 PublicKey.fromString("GBYK4I37MZKLL4A2QS7VJCTDIIJK7UXWQWKXKTQ5WZGT2FPCGIVIQCY5")])])]);
+
+    auto scp_quorum = toSCPQuorumSet(quorum);
+    // todo: verify
 }

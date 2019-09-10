@@ -278,6 +278,18 @@ public class Ledger
 
     /***************************************************************************
 
+        Returns:
+            the last block in the ledger
+
+    ***************************************************************************/
+
+    public Block getLastBlock () @safe nothrow
+    {
+        return this.last_block;
+    }
+
+    /***************************************************************************
+
         Get the array of blocks starting from the provided block height.
         The block at block_height is included in the array.
 

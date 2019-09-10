@@ -151,7 +151,7 @@ public class Ledger
 
     ***************************************************************************/
 
-    private void addValidatedBlock (const ref Block block) nothrow @safe
+    public void addValidatedBlock (const ref Block block) nothrow @safe
     {
         scope (failure) assert(0);
 

@@ -135,9 +135,6 @@ public class Ledger
         }
 
         this.pool.add(tx);
-        if (this.pool.length >= Block.TxsInBlock)
-            this.tryCreateBlock();
-
         return true;
     }
 

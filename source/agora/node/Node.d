@@ -158,6 +158,26 @@ public class Node : API
         this.gossip.receiveTransaction(tx);
     }
 
+    /***************************************************************************
+
+        Receive an SCP envelope.
+
+        API:
+            GET /envelope
+
+        Params:
+            envelope = the SCP envelope
+
+        Returns:
+            true if the envelope was accepted
+
+    ***************************************************************************/
+
+    public bool receiveEnvelope (SCPEnvelope envelope)
+    {
+        return true;
+    }
+
     /// GET: /has_transaction_hash
     public override bool hasTransactionHash (Hash tx) @safe
     {

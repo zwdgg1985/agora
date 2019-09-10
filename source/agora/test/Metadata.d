@@ -13,7 +13,7 @@
 
 module agora.test.Metadata;
 
-version (unittest):
+version (none):
 
 import agora.common.BanManager;
 import agora.common.Config;

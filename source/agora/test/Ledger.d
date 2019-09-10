@@ -25,6 +25,8 @@ import agora.consensus.data.Transaction;
 import agora.consensus.Genesis;
 import agora.test.Base;
 
+version (none):
+
 ///
 unittest
 {

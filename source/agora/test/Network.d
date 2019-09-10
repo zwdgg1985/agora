@@ -13,7 +13,7 @@
 
 module agora.test.Network;
 
-version (unittest):
+version (none):
 
 import agora.test.Base;
 

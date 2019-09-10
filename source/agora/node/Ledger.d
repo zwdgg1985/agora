@@ -190,10 +190,19 @@ public class Ledger
         over the pool. If there are not enough valid transactions,
         a block will not be created.
 
+        Params:
+            block = will contain the block if one was created
+
+        Returns:
+            true if a block was created with enough valid transactions
+
     ***************************************************************************/
 
-    private void tryCreateBlock () @safe
+    public bool tryCreateBlock (out Block block) @safe
     {
+        if (this.pool.length < Block.TxsInBlock)
+            return false;
+
         Hash[] hashes;
         Transaction[] txs;
 
@@ -215,11 +224,13 @@ public class Ledger
         }
 
         if (txs.length != Block.TxsInBlock)
-            return;  // not enough valid txs
+            return false;  // not enough valid txs
 
-        auto block = makeNewBlock(this.last_block, txs);
-        if (!this.acceptBlock(block))  // txs should be valid
-            assert(0);
+        block = makeNewBlock(this.last_block, txs);
+        if (auto fail_reason = this.validateBlock(block))
+            assert(0, fail_reason);  // sanity check
+
+        return true;
     }
 
     /***************************************************************************

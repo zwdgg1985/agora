@@ -17,6 +17,7 @@ import agora.common.Amount;
 import agora.common.Config;
 import agora.common.crypto.Key;
 import agora.common.Hash;
+import agora.common.Set;
 import agora.common.TransactionPool;
 import agora.common.Types;
 import agora.consensus.data.Block;
@@ -34,6 +35,10 @@ import std.range;
 
 mixin AddLogger!();
 
+/// Starts a nomination round for a new transaction set
+public alias NominatorDg = void delegate (ulong slot_idx,
+    Set!Transaction prev, Set!Transaction next ) @safe;
+
 /// Ditto
 public class Ledger
 {
@@ -48,6 +53,9 @@ public class Ledger
 
     /// UTXO set
     private UTXOSet utxo_set;
+
+    /// Callback when a transaction set is ready to be nominated
+    public NominatorDg nominateTxSet;
 
     /// Node config
     private NodeConfig node_config;
@@ -91,6 +99,43 @@ public class Ledger
                 this.updateUTXOSet(block);
             }
         }
+
+        this.nominateTxSet = (idx, prev, next) { this.txSetExternalized(next); };
+    }
+
+    /***************************************************************************
+
+        Set the transaction set nominator callback.
+
+        Params:
+            nominateTxSet = the nominator callback
+
+    ***************************************************************************/
+
+    public void setNominator ( NominatorDg nominateTxSet ) @safe
+    {
+        this.nominateTxSet = nominateTxSet;
+    }
+
+    /***************************************************************************
+
+        Called when a transaction set is externalized.
+
+        This will create a new block and add it to the ledger.
+
+        Params:
+            txs = the transaction set which was externalized
+
+        Returns:
+            true if the transaction set was accepted
+
+    ***************************************************************************/
+
+    public bool txSetExternalized (Set!Transaction txs) nothrow @trusted
+    {
+        scope (failure) assert(0);
+        auto block = makeNewBlock(this.last_block, txs.byKey());
+        return this.acceptBlock(block);
     }
 
     /***************************************************************************
@@ -148,7 +193,7 @@ public class Ledger
         }
 
         if (this.pool.length >= Block.TxsInBlock)
-            this.tryCreateBlock();
+            this.tryNominateTxSet();
 
         return true;
     }
@@ -208,10 +253,10 @@ public class Ledger
 
     ***************************************************************************/
 
-    private void tryCreateBlock () @safe
+    private void tryNominateTxSet () @safe
     {
         Hash[] hashes;
-        Transaction[] txs;
+        Set!Transaction txs;
         ulong expect_height = this.getBlockHeight() + 1;
 
         auto utxo_finder = this.utxo_set.getUTXOFinder();
@@ -222,7 +267,7 @@ public class Ledger
             else
             {
                 hashes ~= hash;
-                txs ~= tx;
+                txs.put(tx);
             }
 
             if (txs.length >= Block.TxsInBlock)
@@ -232,9 +277,10 @@ public class Ledger
         if (txs.length != Block.TxsInBlock)
             return;  // not enough valid txs
 
-        auto block = makeNewBlock(this.last_block, txs);
-        if (!this.acceptBlock(block))  // txs should be valid
-            assert(0);
+        // note: we are not passing the previous tx set as we don't really
+        // need it at this point (might later be necessary for chain upgrades)
+        auto slot_idx = this.last_block.header.height + 1;
+        this.nominateTxSet(slot_idx, Set!Transaction.init, txs);
     }
 
     /***************************************************************************
@@ -257,6 +303,33 @@ public class Ledger
     {
         const ulong expect_height = this.getBlockHeight() + 1;
         return tx.isInvalidReason(this.utxo_set.getUTXOFinder(), expect_height) is null;
+    }
+
+    /***************************************************************************
+
+        Check whether the transaction set is valid.
+
+        Params:
+            txs = transaction set to validate
+
+        Returns:
+            the error message if validation failed, otherwise null
+
+    ***************************************************************************/
+
+    public string validateTxSet (Set!Transaction txs) nothrow @trusted
+    {
+        scope (failure) assert(0);
+        const ulong expect_height = this.getBlockHeight() + 1;
+        auto utxo_finder = this.utxo_set.getUTXOFinder();
+
+        foreach (tx; txs)
+        {
+            if (auto fail_reason = tx.isInvalidReason(utxo_finder, expect_height))
+                return fail_reason;
+        }
+
+        return null;
     }
 
     /***************************************************************************

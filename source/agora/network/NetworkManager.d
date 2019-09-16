@@ -184,6 +184,8 @@ public class NetworkManager
         });
     }
 
+    public TaskManager getWorldTaskManager() { return this.taskman; }
+
     /***************************************************************************
 
         Returns:

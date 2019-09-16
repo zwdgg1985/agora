@@ -57,6 +57,7 @@ public void push_back(T, VectorT) (ref VectorT this_, ref T value) @safe pure no
 public VectorT duplicate(VectorT)(ref const VectorT this_) @safe pure nothrow @nogc;
 public opaque_vec!() XDRToOpaque (const ref xvector!ubyte arg);
 public opaque_vec!() XDRToOpaque (const ref SCPQuorumSet arg);
+public opaque_vec!() XDRToOpaque (const ref SCPStatement arg);
 
 // Does not work, DMD bug
 //extern(C++, `xdr`)

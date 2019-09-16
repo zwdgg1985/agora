@@ -98,4 +98,11 @@ SCPDriver::computeTimeout(uint32 roundNumber)
     }
     return std::chrono::seconds(timeoutInSeconds);
 }
+
+void callCallback (void* cb)
+{
+    auto callback = (std::function<void()>*)cb;
+    (*callback)();
+    delete callback;
+}
 }

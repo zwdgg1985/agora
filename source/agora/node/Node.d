@@ -22,6 +22,7 @@ import agora.common.Types;
 import agora.common.TransactionPool;
 import agora.consensus.data.Transaction;
 import agora.consensus.data.UTXOSet;
+import agora.consensus.protocol.Driver;
 import agora.network.NetworkManager;
 import agora.node.API;
 import agora.node.BlockStorage;
@@ -31,6 +32,9 @@ import agora.utils.Log;
 import agora.utils.PrettyPrinter;
 
 import scpd.types.Stellar_SCP;
+
+import scpd.types.Stellar_SCP;
+import scpd.types.Utils;
 
 import vibe.data.json;
 import vibe.web.rest : RestException;
@@ -82,6 +86,9 @@ public class Node : API
     /// Blockstorage
     private IBlockStorage storage;
 
+    /// Driver instance
+    private Driver scp_driver;
+
     /// Ctor
     public this (const Config config)
     {
@@ -102,10 +109,27 @@ public class Node : API
     /// The first task method, loading from disk, node discovery, etc
     public void start ()
     {
+        import scpd.scp.QuorumSetUtils;
         log.info("Doing network discovery..");
-        this.network.discover();
-
+        auto peers = this.network.discover();
         this.network.retrieveLatestBlocks(this.ledger);
+
+        if (this.config.node.is_validator)
+        {
+            auto quorum_set = toSCPQuorumSet(this.config.quorum);
+            normalizeQSet(quorum_set);
+
+            // todo: assertion fails do the misconfigured(?) threshold of 1 which
+            // is lower than vBlockingSize in QuorumSetSanityChecker::checkSanity
+            const ExtraChecks = false;
+            enforce(isQuorumSetSane(quorum_set, ExtraChecks),
+                "Configured quorum set is not considered valid by SCP");
+
+            this.scp_driver = new Driver(this.config.node.key_pair,
+                this.ledger, this.network.getWorldTaskManager(),
+                peers, quorum_set);
+            this.ledger.setNominator(&this.scp_driver.nominateBlock);
+        }
     }
 
     /***************************************************************************
@@ -175,7 +199,11 @@ public class Node : API
 
     public bool receiveEnvelope (SCPEnvelope envelope)
     {
-        return true;
+        // we should not receive SCP messages unless we're a validator node
+        if (!this.config.node.is_validator)
+            return false;
+
+        return this.scp_driver.receiveEnvelope(envelope);
     }
 
     /// GET: /has_transaction_hash

@@ -73,9 +73,13 @@ extern(C++, (StdNS!())) {
 /// C++ support for foreach
 extern(C++) private int cpp_set_foreach(T)(void* set, void* ctx, void* cb);
 
+import scpd.types.Stellar_SCP;
+extern(C++) public shared_ptr!SCPQuorumSet makeSharedSCPQuorumSet (
+    ref const(SCPQuorumSet));
+
 extern(C++, `std`) {
     /// Binding: Needs to be instantiated on C++ side
-    shared_ptr!T make_shared(T, Args...)(Args args);
+    //shared_ptr!T make_shared(T, Args...)(Args args);
 
     class runtime_error : exception { }
     class logic_error : exception { }
@@ -111,7 +115,31 @@ extern(C++, `std`) {
     {
         void*[3] ptr;
     }
+
+    public struct chrono
+    {
+        public static struct duration
+        {
+            long data;  // usually long
+            alias data this;
+        }
+    }
+
+    // note: pragma(mangle) doesn't work on types yet
+    align(1) public struct cppdelegate (Callback)
+    {
+    align(1):
+        shared_ptr!int __ptr_;
+        //int* a, b;
+        ubyte[24] _1;
+        ubyte[24] _2;
+    }
+
+    static assert(cppdelegate!StellarCallback.sizeof == 64);
 }
+
+///
+public alias StellarCallback = extern(C++) void function();
 
 private extern(C++) set!uint* makeTestSet();
 

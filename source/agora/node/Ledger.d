@@ -33,6 +33,9 @@ import std.range;
 
 mixin AddLogger!();
 
+/// Starts a nomination round for a new block
+public alias NominatorDg = void delegate(Block, Block) @safe;
+
 /// Ditto
 public class Ledger
 {
@@ -47,6 +50,9 @@ public class Ledger
 
     /// UTXO set
     private UTXOSet utxo_set;
+
+    /// Callback when a block is ready to be nominated
+    public NominatorDg nominateBlock;
 
 
     /***************************************************************************
@@ -84,6 +90,23 @@ public class Ledger
                 this.updateUTXOSet(block);
             }
         }
+
+        this.nominateBlock = (last_block, block)
+            { this.acceptBlock(block); };
+    }
+
+    /***************************************************************************
+
+        Set the nominator callback.
+
+        Params:
+            nominator = the nominator callback
+
+    ***************************************************************************/
+
+    public void setNominator ( NominatorDg nominator ) @safe
+    {
+        this.nominateBlock = nominator;
     }
 
     /***************************************************************************
@@ -228,8 +251,10 @@ public class Ledger
             return;  // not enough valid txs
 
         auto block = makeNewBlock(this.last_block, txs);
-        if (!this.acceptBlock(block))  // txs should be valid
-            assert(0);
+        if (auto fail_reason = this.validateBlock(block))
+            assert(0, fail_reason);  // sanity check
+
+        this.nominateBlock(this.last_block, block);
     }
 
     /***************************************************************************

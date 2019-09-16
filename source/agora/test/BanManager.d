@@ -25,7 +25,9 @@ import agora.consensus.Genesis;
 import agora.test.Base;
 
 /// test node banning after putTransaction fails a number of times
-unittest
+/// note: temporarily disabled as node banning needs to be rethinked with regards
+/// to the node being in another node's quorum set
+version (none) unittest
 {
     import core.thread;
     import std.algorithm;

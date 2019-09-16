@@ -13,7 +13,7 @@
 #define INFO "info"
 #define ERROR "error"
 #define FATAL "fatal"
-#define CLOG(LEVEL, MOD) std::cout << "[" << LEVEL << ", " << MOD << "] "
+#define CLOG(LEVEL, MOD) std::cout.rdbuf(NULL); std::cout << "[" << LEVEL << ", " << MOD << "] "
 
 namespace stellar
 {

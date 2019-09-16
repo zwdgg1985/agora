@@ -365,8 +365,11 @@ public class TestNode : Node, TestAPI
 /// Describes a network topology for testing purpose
 public enum NetworkTopology
 {
-    /// 4 nodes which all know about each other. Figure 9 in the SCP paper.
+    /// A number nodes which all know about each other. Figure 9 in the SCP paper.
     Simple,
+
+    /// Same as Simple, with one additional non-validating node
+    OneNonValidator,
 
     /// 4 nodes, 3 required, correspond to Figure 2 in the SCP paper
     Balanced,
@@ -425,10 +428,12 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
 
     assert(nodes >= 2, "Creating a network require at least 2 nodes");
 
-    NodeConfig makeNodeConfig ()
+    enum IsValidator { No, Yes }
+    NodeConfig makeNodeConfig (IsValidator is_validator = IsValidator.Yes)
     {
         NodeConfig conf =
         {
+            is_validator : is_validator == IsValidator.Yes,
             key_pair : KeyPair.random(),
             retry_delay : retry_delay, // msecs
             max_retries : max_retries,
@@ -452,8 +457,10 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
                 .filter!(conf => conf != self)
                 .map!(conf => conf.key_pair.address.toString());
 
-        auto quorum_keys = assumeUnique(
-            node_confs.map!(conf => conf.key_pair.address).array);
+        auto quorum_keys =
+            node_confs
+                .filter!(conf => conf.is_validator)
+                .map!(conf => conf.key_pair.address).array.assumeUnique;
 
         Config conf =
         {
@@ -466,21 +473,23 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
         return conf;
     }
 
+    NodeConfig[] node_configs;
+    Config[] configs;
+
     final switch (topology)
     {
     case NetworkTopology.Simple:
-        auto node_configs = iota(nodes).map!(_ => makeNodeConfig()).array;
-        auto configs = iota(nodes)
+        node_configs = iota(nodes).map!(_ => makeNodeConfig()).array;
+        configs = iota(nodes)
             .map!(idx => makeConfig(node_configs[idx], node_configs)).array;
+        break;
 
-        auto net = new APIManager();
-        foreach (idx, ref conf; configs)
-        {
-            const address = node_configs[idx].key_pair.address;
-            net.createNewNode(address, conf);
-        }
-
-        return net;
+    case NetworkTopology.OneNonValidator:
+        node_configs ~= iota(nodes - 1).map!(_ => makeNodeConfig()).array;
+        node_configs ~= makeNodeConfig(IsValidator.No);
+        configs = iota(nodes)
+            .map!(idx => makeConfig(node_configs[idx], node_configs)).array;
+        break;
 
     case NetworkTopology.Balanced:
     case NetworkTopology.Tiered:
@@ -488,6 +497,15 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
     case NetworkTopology.SinglePoF:
         assert(0, "Not implemented");
     }
+
+    auto net = new APIManager();
+    foreach (idx, ref conf; configs)
+    {
+        const address = node_configs[idx].key_pair.address;
+        net.createNewNode(address, conf);
+    }
+
+    return net;
 }
 
 /*******************************************************************************

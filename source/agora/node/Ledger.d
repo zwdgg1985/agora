@@ -138,7 +138,9 @@ public class Ledger
             return false;
         }
 
-        this.pool.add(tx);
+        if (!this.pool.add(tx))
+            return false;
+
         if (this.pool.length >= Block.TxsInBlock)
             this.tryCreateBlock();
 
@@ -185,7 +187,7 @@ public class Ledger
         block.txs.each!(tx => this.utxo_set.updateUTXOCache(tx));
 
         // remove the TXs from the Pool
-        block.txs.each!(tx => this.pool.remove(tx.hashFull()));
+        block.txs.each!(tx => this.pool.remove(tx, tx.hashFull()));
     }
 
     /***************************************************************************
@@ -204,19 +206,11 @@ public class Ledger
         Hash[] hashes;
         Transaction[] txs;
 
-        auto utxo_finder = this.utxo_set.getUTXOFinder();
+        // note: all tx'es in the pool are validated and do not double-spend
         foreach (hash, tx; this.pool)
         {
-            if (tx.isValid(utxo_finder))
-            {
-                hashes ~= hash;
-                txs ~= tx;
-            }
-            else
-            {
-                log.trace("Rejected double-spend tx: {}", tx);
-            }
-
+            hashes ~= hash;
+            txs ~= tx;
             if (txs.length >= Block.TxsInBlock)
                 break;
         }
@@ -225,8 +219,7 @@ public class Ledger
             return;  // not enough valid txs
 
         auto block = makeNewBlock(this.last_block, txs);
-        if (!this.acceptBlock(block))  // txs should be valid
-            assert(0);
+        this.addValidatedBlock(block);  // block is valid
     }
 
     /***************************************************************************

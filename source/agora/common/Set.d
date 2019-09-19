@@ -44,7 +44,7 @@ public struct Set (T)
     }
 
     /// Walk over all elements and call dg(elem)
-    public int opApply (scope int delegate(T) dg)
+    public int opApply (scope int delegate(T) dg) @trusted
     {
         foreach (key; this._set.byKey)
         {

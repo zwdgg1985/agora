@@ -33,7 +33,17 @@ public class UTXOSet
     /// Utxo cache backed by a database
     private UTXODB utxo_db;
 
+    /// Keeps track of outputs referenced by transactions in the Pool,
+    /// allowing double-spend txs to be filtered before they enter the Pool.
+    /// When Transactions are moved from the Pool to an externalized Block,
+    /// their referenced UTXOs are removed from 'pool_utxos'
+    private Set!Hash pool_utxos;
+
     /// Keeps track of spent outputs during the validation of a Tx / Block
+    /// Since a Transaction may fail validation, the `pool_utxos` should
+    /// not be updated during validation. Instead this temporary `used_utxos`
+    /// is updated instead, and if the Tx is valid and added to the Pool then
+    /// hashes in 'used_utxos' will be added to 'pool_utxos'.
     private Set!Hash used_utxos;
 
 
@@ -90,6 +100,7 @@ public class UTXOSet
         {
             auto utxo_hash = getHash(input.previous, input.index);
             this.utxo_db.remove(utxo_hash);
+            this.pool_utxos.remove(utxo_hash);
         }
 
         Hash tx_hash = tx.hashFull();
@@ -105,6 +116,10 @@ public class UTXOSet
         Prepare tracking double-spent transactions and
         return the UTXOFinder delegate
 
+        If a Transaction is valid and added to the Pool,
+        the updateSpent() method must be called in order
+        to update the used UTXOs hashset.
+
         Returns:
             the UTXOFinder delegate
 
@@ -114,6 +129,19 @@ public class UTXOSet
     {
         this.used_utxos.clear();
         return &this.findUTXO;
+    }
+
+    /***************************************************************************
+
+        Add all items from 'used_utxos' into the 'pool_utxos' set.
+        Must be called after a valid Transaction is added to the Pool.
+
+    ***************************************************************************/
+
+    public void updateSpent () @trusted
+    {
+        foreach (utxo; this.used_utxos)
+            this.pool_utxos.put(utxo);
     }
 
     /***************************************************************************
@@ -135,7 +163,8 @@ public class UTXOSet
     {
         auto utxo_hash = getHash(hash, index);
 
-        if (utxo_hash in this.used_utxos)
+        if (utxo_hash in this.pool_utxos ||
+            utxo_hash in this.used_utxos)
             return false;  // double-spend
 
         if (this.utxo_db.find(utxo_hash, output))

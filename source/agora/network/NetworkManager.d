@@ -131,7 +131,7 @@ public class NetworkManager
                 this.addAddresses(resolveDNSSeeds(this.dns_seeds));
         }
 
-        log.info("Discovering from {}", this.todo_addresses.byKey());
+        log.info("Discovering from {}", this.todo_addresses);
 
         while (!this.minPeersConnected())
         {

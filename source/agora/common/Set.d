@@ -28,8 +28,7 @@ import core.stdc.string;
 public struct Set (T)
 {
     ///
-    bool[T] _set;
-    alias _set this;
+    public bool[T] _set;
 
     /// Put an element in the set
     public void put (T key)
@@ -43,16 +42,66 @@ public struct Set (T)
         this._set.remove(key);
     }
 
-    /// Walk over all elements and call dg(elem)
-    public int opApply (scope int delegate(T) dg)
-    {
-        foreach (key; this._set.byKey)
-        {
-            if (auto ret = dg(key))
-                return ret;
-        }
+    /***************************************************************************
 
-        return 0;
+        Returns:
+            An array of all the items in the set
+
+    ***************************************************************************/
+
+    public T[] keys () const @trusted nothrow
+    {
+        return this._set.keys;  // it's @system..
+    }
+
+    /***************************************************************************
+
+        Clears the set
+
+    ***************************************************************************/
+
+    public void clear ()
+    {
+        this._set.clear();
+    }
+
+    /***************************************************************************
+
+        Params:
+            item = the item to look up
+
+        Returns:
+            true if the key is in the set
+
+    ***************************************************************************/
+
+    public const(bool)* opIn_r ( T item ) const @safe @nogc nothrow
+    {
+        return item in this._set;
+    }
+
+    /***************************************************************************
+
+        Returns:
+            The length of the set
+
+    ***************************************************************************/
+
+    public size_t length () const @safe @nogc nothrow
+    {
+        return this._set.length;
+    }
+
+    /***************************************************************************
+
+        Returns:
+            a range of all the elements in the set
+
+    ***************************************************************************/
+
+    public auto walk () const @safe @nogc nothrow
+    {
+        return this._set.byKey();
     }
 
     /// Build a new Set out of the provided range
@@ -65,7 +114,7 @@ public struct Set (T)
     }
 
     /// Fill an existing set with elements from an array
-    public void fill (const(T)[] rhs)
+    public void fill (T[] rhs)
     {
         foreach (key; rhs)
             this.put(key);
@@ -122,6 +171,9 @@ public struct Set (T)
             }
         }
     }
+
+    /// allows easy foreach support
+    public alias walk this;
 }
 
 /// fill the buffer with the set's keys

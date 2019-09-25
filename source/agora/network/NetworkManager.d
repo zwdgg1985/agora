@@ -169,19 +169,19 @@ public class NetworkManager
 
     public void retrieveLatestBlocks (Ledger ledger)
     {
-        this.taskman.runTask(
-        ()
-        {
-            // periodic task
-            while (1)
-            {
-                this.getBlocksFrom(
-                    ledger.getBlockHeight() + 1,
-                    blocks => blocks.all!(block => ledger.acceptBlock(block)));
+        //this.taskman.runTask(
+        //()
+        //{
+        //    // periodic task
+        //    while (1)
+        //    {
+        //        this.getBlocksFrom(
+        //            ledger.getBlockHeight() + 1,
+        //            blocks => blocks.all!(block => ledger.acceptBlock(block)));
 
-                this.taskman.wait(2.seconds);
-            }
-        });
+        //        this.taskman.wait(2.seconds);
+        //    }
+        //});
     }
 
     /***************************************************************************

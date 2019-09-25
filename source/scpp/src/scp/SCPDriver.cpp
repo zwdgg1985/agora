@@ -5,6 +5,7 @@
 #include "SCPDriver.h"
 
 #include <algorithm>
+#include <stdio.h>
 
 #include "crypto/Hex.h"
 #include "crypto/KeyUtils.h"
@@ -97,5 +98,12 @@ SCPDriver::computeTimeout(uint32 roundNumber)
         timeoutInSeconds = (int)roundNumber;
     }
     return std::chrono::seconds(timeoutInSeconds);
+}
+
+void SCPDriver::callCallback (uint64 idx)
+{
+    // printf("-- About to call last callback %lu\n", idx);
+    callbacks[idx]();
+    // printf("-- Done calling last callback  %lu.\n", idx);
 }
 }

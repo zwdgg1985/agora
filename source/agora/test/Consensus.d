@@ -25,7 +25,6 @@ import agora.consensus.data.UTXOSet;
 import agora.consensus.Genesis;
 import agora.test.Base;
 
-version (none):
 /// test cyclic quorum config
 unittest
 {
@@ -35,7 +34,7 @@ unittest
 
     const NodeCount = 6;
     auto network = makeTestNetwork(NetworkTopology.Cyclic, NodeCount, true,
-        100, 20, 100);  // reduce timeout to 100 msecs
+        100, 20, 100);
     network.start();
     scope(exit) network.shutdown();
     assert(network.getDiscoveredNodes().length == NodeCount);
@@ -43,10 +42,7 @@ unittest
     auto nodes = network.apis.values;
     auto node_1 = nodes[0];
 
-    // ignore transaction propagation and periodically retrieve blocks via getBlocksFrom
-    nodes[1 .. $].each!(node => node.filter!(node.putTransaction));
-
-    auto txs = makeChainedTransactions(getGenesisKeyPair(), null, 2);
+    auto txs = makeChainedTransactions(getGenesisKeyPair(), null, 1);
     txs.each!(tx => node_1.putTransaction(tx));
-    containSameBlocks(nodes, 2).retryFor(8.seconds);
+    containSameBlocks(nodes, 1).retryFor(5.seconds);
 }

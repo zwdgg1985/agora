@@ -14,7 +14,7 @@
 
 module agora.test.Ledger;
 
-version (unittest):
+version (none):
 
 import agora.common.Amount;
 import agora.common.crypto.Key;

@@ -16,6 +16,7 @@ module agora.consensus.protocol.Driver;
 import agora.common.crypto.Key;
 import agora.common.Deserializer;
 import agora.common.Serializer;
+import agora.common.Task;
 import agora.consensus.data.Block;
 import agora.network.NetworkClient;
 import agora.utils.Log;
@@ -43,6 +44,9 @@ public alias ExternalizeBlockDg = bool delegate(const ref Block block) @safe;
 /// Ditto
 public extern (C++) class Driver : SCPDriver
 {
+    /// Task manager
+    private TaskManager taskman;
+
     /// Callback to validate blocks with
     private ValidateBlockDg validateBlockDg;
 
@@ -54,6 +58,8 @@ public extern (C++) class Driver : SCPDriver
 
     /// Cache of quorum set
     private SCPQuorumSet[StellarHash] quorum_cache;
+
+    //shared_ptr!blah callback;
 
 
     /***************************************************************************
@@ -69,10 +75,11 @@ public extern (C++) class Driver : SCPDriver
 
     ***************************************************************************/
 
-    extern (D) public this (ValidateBlockDg validateBlockDg,
+    extern (D) public this (TaskManager taskman, ValidateBlockDg validateBlockDg,
         ExternalizeBlockDg externalizeBlockDg, NetworkClient[PublicKey] nodes,
         SCPQuorumSet quorum_set)
     {
+        this.taskman = taskman;
         this.validateBlockDg = validateBlockDg;
         this.externalizeBlockDg = externalizeBlockDg;
         this.nodes = nodes;
@@ -232,8 +239,24 @@ public extern (C++) class Driver : SCPDriver
     }
 
     ///
-    public override void setupTimer()
+    public override void setupTimer (ulong slotIndex, int timerID,
+        chrono.duration timeout, uint64_t idx, cppdelegate!StellarCallback cb)
     {
-        //log.info("setupTimer()");
+        import core.time;
+        scope (failure) assert(0);
+
+        if (timeout == 0)  // todo: this should disable the timer @ timerID
+            return;
+
+        //log.info("-- setupTimer(): slotIndex {}, timerID {}, timeout {}, cb {}",
+        //    slotIndex, timerID, timeout, &cb);
+
+        this.taskman.runTask(
+        {
+            this.taskman.wait(timeout.msecs);
+
+            //log.info("-- setupTimer() invoking callback");
+            this.callCallback(idx);
+        });
     }
 }

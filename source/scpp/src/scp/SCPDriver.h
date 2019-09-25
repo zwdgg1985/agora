@@ -19,6 +19,7 @@ typedef std::shared_ptr<SCPQuorumSet> SCPQuorumSetPtr;
 class SCPDriver
 {
   public:
+    std::vector<std::function<void()>> callbacks;
     virtual ~SCPDriver()
     {
     }
@@ -113,6 +114,7 @@ class SCPDriver
     // if cb is nullptr, the timer is cancelled
     virtual void setupTimer(uint64 slotIndex, int timerID,
                             std::chrono::milliseconds timeout,
+                            uint64 idx,
                             std::function<void()> cb) = 0;
 
     // `computeTimeout` computes a timeout given a round number
@@ -179,5 +181,7 @@ class SCPDriver
     ballotDidHearFromQuorum(uint64 slotIndex, SCPBallot const& ballot)
     {
     }
+
+    void callCallback (uint64 idx);
 };
 }

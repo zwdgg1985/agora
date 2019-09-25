@@ -428,12 +428,11 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
 
     assert(nodes >= 2, "Creating a network require at least 2 nodes");
 
-    enum IsValidator { No, Yes }
-    NodeConfig makeNodeConfig (IsValidator is_validator = IsValidator.Yes)
+    NodeConfig makeNodeConfig ()
     {
         NodeConfig conf =
         {
-            is_validator : is_validator == IsValidator.Yes,
+            is_validator : true,
             key_pair : KeyPair.random(),
             retry_delay : retry_delay, // msecs
             max_retries : max_retries,
@@ -444,14 +443,14 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
         return conf;
     }
 
+    BanManager.Config ban_conf =
+    {
+        max_failed_requests : max_failed_requests,
+        ban_duration: 300
+    };
+
     Config makeConfig (NodeConfig self, NodeConfig[] node_confs)
     {
-        BanManager.Config ban_conf =
-        {
-            max_failed_requests : max_failed_requests,
-            ban_duration: 300
-        };
-
         auto other_nodes =
             node_confs
                 .filter!(conf => conf != self)
@@ -473,6 +472,23 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
         return conf;
     }
 
+    Config makeCyclicConfig (size_t idx, NodeConfig self, NodeConfig[] node_confs)
+    {
+        auto prev_idx = idx == 0 ? node_confs.length - 1 : idx - 1;
+        immutable other_nodes = [node_confs[prev_idx].key_pair.address.toString()];
+        immutable quorum_keys = [node_confs[prev_idx].key_pair.address];
+
+        Config conf =
+        {
+            banman : ban_conf,
+            node : self,
+            network : configure_network ? other_nodes : null,
+            quorum : { nodes : quorum_keys }
+        };
+
+        return conf;
+    }
+
     NodeConfig[] node_configs;
     Config[] configs;
 
@@ -485,16 +501,24 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
         break;
 
     case NetworkTopology.OneNonValidator:
-        node_configs ~= iota(nodes - 1).map!(_ => makeNodeConfig()).array;
-        node_configs ~= makeNodeConfig(IsValidator.No);
+        node_configs ~= iota(nodes).map!(_ => makeNodeConfig()).array;
+        node_configs[$ - 1].is_validator = false;
         configs = iota(nodes)
             .map!(idx => makeConfig(node_configs[idx], node_configs)).array;
         break;
 
+    case NetworkTopology.Cyclic:
+        node_configs = iota(nodes).map!(_ => makeNodeConfig()).array;
+        node_configs.each!((ref conf) => conf.min_listeners = 1);
+        configs = iota(nodes)
+            .map!(idx => makeCyclicConfig(idx, node_configs[idx], node_configs))
+                .array;
+
+        break;
+
+    case NetworkTopology.SinglePoF:
     case NetworkTopology.Balanced:
     case NetworkTopology.Tiered:
-    case NetworkTopology.Cyclic:
-    case NetworkTopology.SinglePoF:
         assert(0, "Not implemented");
     }
 

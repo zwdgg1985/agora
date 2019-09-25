@@ -125,7 +125,8 @@ public class Node : API
             enforce(isQuorumSetSane(quorum_set, ExtraChecks),
                 "Configured quorum set is not considered valid by SCP");
 
-            this.nominator = new Nominator(this.config.node.key_pair.address,
+            this.nominator = new Nominator(this.network.getWorldTaskManager(),
+                this.config.node.key_pair.address,
                 peers, quorum_set, this.ledger);
             this.ledger.setNominator(&this.nominator.nominateBlock);
         }

@@ -111,7 +111,31 @@ extern(C++, `std`) {
     {
         void*[3] ptr;
     }
+
+    public struct chrono
+    {
+        public static struct duration
+        {
+            long data;  // usually long
+            alias data this;
+        }
+    }
+
+    // note: pragma(mangle) doesn't work on types yet
+    align(1) public struct cppdelegate (Callback)
+    {
+    align(1):
+        //shared_ptr!int __ptr_;
+        int* a, b;
+        ubyte[24] _1;
+        ubyte[24] _2;
+    }
+
+    static assert(cppdelegate!StellarCallback.sizeof == 64);
 }
+
+///
+public alias StellarCallback = extern(C++) void function();
 
 private extern(C++) set!uint* makeTestSet();
 

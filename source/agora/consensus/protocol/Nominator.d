@@ -19,6 +19,7 @@ module agora.consensus.protocol.Nominator;
 import agora.common.Config;
 import agora.common.crypto.Key;
 import agora.common.Serializer;
+import agora.common.Task;
 import agora.consensus.data.Block;
 import agora.consensus.Genesis;
 import agora.consensus.protocol.Driver;
@@ -65,14 +66,14 @@ class Nominator
 
     ***************************************************************************/
 
-    public this (PublicKey pub_key, NetworkClient[PublicKey] nodes,
-        SCPQuorumSet quorum_set, Ledger ledger)
+    public this (TaskManager taskman, PublicKey pub_key,
+        NetworkClient[PublicKey] nodes, SCPQuorumSet quorum_set, Ledger ledger)
     {
         assert(nodes.length > 0);
 
         this.pub_key = pub_key;
-        this.driver = new Driver(&ledger.validateBlock, &ledger.acceptBlock,
-            nodes, quorum_set);
+        this.driver = new Driver(taskman, &ledger.validateBlock,
+            &ledger.acceptBlock, nodes, quorum_set);
 
         import scpd.types.Stellar_types : StellarHash = Hash;
         auto node_id = NodeID(StellarHash(pub_key[]));

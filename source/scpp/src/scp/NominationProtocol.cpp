@@ -458,7 +458,7 @@ NominationProtocol::getStatementValues(SCPStatement const& st)
              [&](Value const& v) { res.emplace_back(v); });
     return res;
 }
-
+#include <stdio.h>
 // attempts to nominate a value for consensus
 bool
 NominationProtocol::nominate(Value const& value, Value const& previousValue,
@@ -518,11 +518,15 @@ NominationProtocol::nominate(Value const& value, Value const& previousValue,
     mSlot.getSCPDriver().nominatingValue(mSlot.getSlotIndex(), nominatingValue);
 
     std::shared_ptr<Slot> slot = mSlot.shared_from_this();
-    mSlot.getSCPDriver().setupTimer(
-        mSlot.getSlotIndex(), Slot::NOMINATION_TIMER, timeout,
-        [slot, value, previousValue]() {
+
+    mSlot.getSCPDriver().callbacks.push_back([slot, value, previousValue]() {
             slot->nominate(value, previousValue, true);
         });
+
+    mSlot.getSCPDriver().setupTimer(
+        mSlot.getSlotIndex(), Slot::NOMINATION_TIMER, timeout,
+        mSlot.getSCPDriver().callbacks.size() - 1,
+        mSlot.getSCPDriver().callbacks.back());
 
     if (updated)
     {

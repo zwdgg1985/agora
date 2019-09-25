@@ -25,6 +25,8 @@ extern(C++, `stellar`):
 
 public abstract class SCPDriver
 {
+    ubyte[24] vector_callbacks;
+
 nothrow:
     ~this() {}
 
@@ -102,12 +104,10 @@ nothrow:
 
     // `setupTimer`: requests to trigger 'cb' after timeout
     // if cb is nullptr, the timer is cancelled
-    /*
-    abstract void setupTimer(uint64 slotIndex, int timerID,
-                             std::chrono::milliseconds timeout,
-                             std::function<void()> cb);
-    */
-    abstract void setupTimer();
+    abstract void setupTimer(ulong slotIndex, int timerID,
+                             chrono.duration timeout,
+                             uint64_t idx,
+                             cppdelegate!(void function()));
 
     // `computeTimeout` computes a timeout given a round number
     // it should be sufficiently large such that nodes in a
@@ -150,6 +150,8 @@ nothrow:
     // the current `mBallot` from a set of node that is a transitive quorum for
     // the local node.
     void ballotDidHearFromQuorum(uint64_t slotIndex, ref const(SCPBallot) ballot);
+
+    void callCallback (uint64_t idx);
 }
 
-static assert(__traits(classInstanceSize, SCPDriver) == 8);
+static assert(__traits(classInstanceSize, SCPDriver) == 32);

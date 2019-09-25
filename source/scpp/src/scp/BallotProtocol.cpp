@@ -500,9 +500,13 @@ BallotProtocol::startBallotProtocolTimer()
         mSlot.getSCPDriver().computeTimeout(mCurrentBallot->counter);
 
     std::shared_ptr<Slot> slot = mSlot.shared_from_this();
+
+    mSlot.getSCPDriver().callbacks.push_back([slot]() { slot->getBallotProtocol().ballotProtocolTimerExpired(); });
+
     mSlot.getSCPDriver().setupTimer(
         mSlot.getSlotIndex(), Slot::BALLOT_PROTOCOL_TIMER, timeout,
-        [slot]() { slot->getBallotProtocol().ballotProtocolTimerExpired(); });
+        mSlot.getSCPDriver().callbacks.size() - 1,
+        mSlot.getSCPDriver().callbacks.back());
 }
 
 void
@@ -511,7 +515,7 @@ BallotProtocol::stopBallotProtocolTimer()
     std::shared_ptr<Slot> slot = mSlot.shared_from_this();
     mSlot.getSCPDriver().setupTimer(mSlot.getSlotIndex(),
                                     Slot::BALLOT_PROTOCOL_TIMER,
-                                    std::chrono::seconds::zero(), nullptr);
+                                    std::chrono::seconds::zero(), 0, nullptr);
 }
 
 void

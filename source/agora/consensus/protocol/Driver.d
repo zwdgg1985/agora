@@ -45,6 +45,19 @@ public alias ValidateBlockDg = string delegate(const ref Block block) nothrow @s
 /// Used for adding a block to the ledger after it was externalized
 public alias ExternalizeBlockDg = bool delegate(const ref Block block) @safe;
 
+void print (T...)(T args) nothrow
+{
+    try
+    {
+        import std.stdio;
+        writefln(args);
+    }
+    catch (Exception ex)
+    {
+
+    }
+}
+
 /// Ditto
 public extern (C++) class Driver : SCPDriver
 {
@@ -106,6 +119,7 @@ extern(D):
         TaskManager taskman, NetworkClient[PublicKey] peers,
         SCPQuorumSet quorum_set)
     {
+        print("%s Driver.ctor", this.key_pair.address);
         this.key_pair = key_pair;
         import scpd.types.Stellar_types : StellarHash = Hash;
         auto node_id = NodeID(StellarHash(key_pair.address[]));
@@ -140,6 +154,8 @@ extern(D):
 
     public void nominateBlock (Block last_block, Block block) @trusted
     {
+        print("%s nominateBlock", this.key_pair.address);
+
         auto slot_idx = last_block.header.height + 1;
         log.info("proposeNewBlock(): Proposing block for slot {}", slot_idx);
 
@@ -166,6 +182,8 @@ extern(D):
 
     private void prepareSCP (Ledger ledger)
     {
+        print("%s prepareSCP", this.key_pair.address);
+
         import agora.common.Serializer;
         import scpd.types.Stellar_SCP;
         import scpd.types.Utils;
@@ -215,6 +233,8 @@ extern(D):
     // override of computeHashNode()
     private uint64_t mPriorityLookup (ref const(NodeID) node_id) nothrow
     {
+        print("%s mPriorityLookup", this.key_pair.address);
+
         return (node_id == scp.getLocalNodeID()) ? 1000 : 1;
     }
 
@@ -232,6 +252,8 @@ extern(D):
 
     public bool receiveEnvelope (SCPEnvelope envelope) @safe
     {
+        print("%s receiveEnvelope", this.key_pair.address);
+
         if (!this.verifyEnvelope(envelope))
         {
             log.info("Invalid envelope: %s", envelope);
@@ -247,6 +269,8 @@ extern(D):
 
     private bool verifyEnvelope (SCPEnvelope envelope) @trusted
     {
+        print("%s verifyEnvelope", this.key_pair.address);
+
         return true;
 
         // todo: implement proper support for this
@@ -276,6 +300,8 @@ extern(D):
     ///
     public override void signEnvelope (ref SCPEnvelope envelope)
     {
+        print("%s signEnvelope", this.key_pair.address);
+
         // todo: implement proper support for this
         version (none)
         {
@@ -291,6 +317,8 @@ extern(D):
     // todo: this is called in tests too for some reason
     private void storeQuorumSet(SCPQuorumSetPtr qSet)
     {
+        print("%s storeQuorumSet", this.key_pair.address);
+
         // todo
         const bytes = ByteSlice.make(XDRToOpaque(*qSet));
         auto quorum_hash = sha256(bytes);
@@ -300,6 +328,8 @@ extern(D):
     public override ValidationLevel validateValue (uint64_t slot_idx,
         ref const(Value) value, bool nomination) nothrow
     {
+        print("%s validateValue", this.key_pair.address);
+
         scope (failure) assert(0);
 
         try
@@ -344,6 +374,8 @@ extern(D):
     public override void ballotDidHearFromQuorum (uint64_t slotIndex,
         ref const(SCPBallot) ballot) nothrow
     {
+        print("%s ballotDidHearFromQuorum", this.key_pair.address);
+
         import std.stdio;
         try { stderr.writefln("index %s found ballot", slotIndex); } catch (Exception ex) { }
         mHeardFromQuorums[slotIndex] ~= ballot;
@@ -352,6 +384,8 @@ extern(D):
     public override void valueExternalized (uint64_t slot_idx,
         ref const(Value) value)
     {
+        print("%s valueExternalized", this.key_pair.address);
+
         try
         {
             // todo: ignore this just like HerderSCPDriver
@@ -379,6 +413,8 @@ extern(D):
     ///
     public override SCPQuorumSetPtr getQSet (ref const(StellarHash) qSetHash)
     {
+        print("%s getQSet", this.key_pair.address);
+
         if (auto scp_quroum = qSetHash in this.mQuorumSets)
             return *scp_quroum;
 
@@ -388,6 +424,7 @@ extern(D):
     /// todo: in tests this just appends
     public override void emitEnvelope (ref const(SCPEnvelope) envelope)
     {
+        print("%s emitEnvelope", this.key_pair.address);
         scope (failure) assert(0);
 
         foreach (key, node; this.peers)
@@ -422,6 +459,7 @@ extern(D):
     public override Value combineCandidates (uint64_t slot_idx,
         ref const(set!Value) candidates)
     {
+        print("%s combineCandidates", this.key_pair.address);
         scope (failure) assert(0);
 
         // todo:
@@ -465,6 +503,7 @@ extern(D):
         ref const(Value) prev, bool isPriority, int32_t roundNumber,
         ref const(NodeID) nodeID)
     {
+        print("%s computeHashNode", this.key_pair.address);
         uint64_t res;
         if (isPriority)
         {
@@ -481,6 +520,7 @@ extern(D):
     public override uint64_t computeValueHash (uint64_t slotIndex,
         ref const(Value) prev, int32_t roundNumber, ref const(Value) value)
     {
+        print("%s computeValueHash", this.key_pair.address);
         return mHashValueCalculator(value);
     }
 
@@ -488,6 +528,8 @@ extern(D):
     public override void setupTimer (ulong slotIndex, int timerID,
         chrono.duration timeout, cppdelegate!StellarCallback* cb)
     {
+        print("%s setupTimer", this.key_pair.address);
+
         import core.time;
         scope (failure) assert(0);
 

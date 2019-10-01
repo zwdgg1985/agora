@@ -42,12 +42,8 @@ public template AddLogger (string moduleName = __MODULE__)
 /// Convenience alias
 public alias LogLevel = Level;
 
-version (unittest) {}
-else
+/// Initialize the logger
+static this ()
 {
-    /// Initialize the logger
-    static this ()
-    {
-        Log.defaultConfig();
-    }
+    Log.defaultConfig();
 }

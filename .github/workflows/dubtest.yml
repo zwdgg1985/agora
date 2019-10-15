@@ -16,17 +16,13 @@ jobs:
     - name: Install D and Dub
       run: |
         brew install dmd
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install libsodium-dev
     - name: Build and test agora
       run: |
-        ./ci/travis_linux_setup.sh
+        ./ci/travis_osx_setup.sh
         ./ci/run.sh
 
   # test_ubuntu:
-  #   runs-on: macOS-10.14
+  #   runs-on: ubuntu-latest
   #   steps:
   #   - uses: actions/checkout@v1
   #     with:
@@ -40,5 +36,5 @@ jobs:
   #       rm -fv dmd_${DMD_VERSION}-0_amd64.deb
   #   - name: Build and test agora
   #     run: |
-  #       ./ci/travis_osx_setup.sh
+  #       ./ci/travis_linux_setup.sh
   #       ./ci/run.sh

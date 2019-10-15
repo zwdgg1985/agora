@@ -19,7 +19,9 @@ jobs:
     - name: Build and test agora
       run: |
         ./ci/travis_osx_setup.sh
-        ./ci/run.sh
+        set -xeu
+        set -o pipefail
+        dub test -b unittest-cov --skip-registry=all --compiler=dmd
 
   # test_ubuntu:
   #   runs-on: ubuntu-latest

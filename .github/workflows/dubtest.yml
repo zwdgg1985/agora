@@ -17,7 +17,7 @@ jobs:
       run: |
         brew install dmd
         brew install dub
-        brew install libsqlite3-dev
+        brew install sqlite3
     - name: Build and test agora
       run: |
         ./ci/travis_osx_setup.sh

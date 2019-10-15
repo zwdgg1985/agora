@@ -6,28 +6,39 @@ on:
       - v0.x.x
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macOS-latest]
-
+  test_mac:
+    # runs-on: macOS-latest
+    runs-on: macOS-10.14
     steps:
     - uses: actions/checkout@v1
       with:
         submodules: true
     - name: Install D and Dub
       run: |
-        DMD_VERSION=2.088.0
-        wget http://downloads.dlang.org/releases/2.x/${DMD_VERSION}/dmd_${DMD_VERSION}-0_amd64.deb
-        sudo dpkg -i dmd_${DMD_VERSION}-0_amd64.deb
-        sudo apt install -f
-        rm -fv dmd_${DMD_VERSION}-0_amd64.deb
+        curl -fsS https://dlang.org/install.sh | bash -s dmd
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install libsodium-dev
     - name: Build and test agora
       run: |
-        dub build
-        dub test
+        ./ci/travis_linux_setup.sh
+        ./ci/run.sh
+
+  # test_ubuntu:
+  #   runs-on: macOS-10.14
+  #   steps:
+  #   - uses: actions/checkout@v1
+  #     with:
+  #       submodules: true
+  #   - name: Install D and Dub
+  #     run: |
+  #       DMD_VERSION=2.088.0
+  #       wget http://downloads.dlang.org/releases/2.x/${DMD_VERSION}/dmd_${DMD_VERSION}-0_amd64.deb
+  #       sudo dpkg -i dmd_${DMD_VERSION}-0_amd64.deb
+  #       sudo apt install -f
+  #       rm -fv dmd_${DMD_VERSION}-0_amd64.deb
+  #   - name: Build and test agora
+  #     run: |
+  #       ./ci/travis_osx_setup.sh
+  #       ./ci/run.sh

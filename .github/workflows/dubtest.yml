@@ -25,19 +25,9 @@ jobs:
         rm -fv dmd_${DMD_VERSION}-0_amd64.deb
     - name: Install dependencies
       run: |
-        # This step is needed because ddox build triggers preBuildCommand
         sudo apt-get update
         sudo apt-get install libsodium-dev
-    - name: Generate docs.json
+    - name: Build and test agora
       run: |
-        dub build -b ddox
-    - name: Filter out libraries
-      # `x:ddocFilterArgs` in `dub.json` does not seem to work,
-      # so we do it manually
-      run: |
-        jq '[ .[] | select(.file|startswith("source/")) ]' docs.json > docs.filtered.json
-    - name: Generate documentation
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
+        dub build
         dub test

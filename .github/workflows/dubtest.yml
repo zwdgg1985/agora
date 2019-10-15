@@ -16,6 +16,7 @@ jobs:
     - name: Install D and Dub
       run: |
         brew install dmd
+        brew install dub
     - name: Build and test agora
       run: |
         ./ci/travis_osx_setup.sh

@@ -15,7 +15,7 @@ jobs:
         submodules: true
     - name: Install D and Dub
       run: |
-        curl -fsS https://dlang.org/install.sh | bash -s dmd
+        brew install dmd
     - name: Install dependencies
       run: |
         sudo apt-get update

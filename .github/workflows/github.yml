@@ -12,7 +12,8 @@ jobs:
     #     runs-on: ${{ matrix.os }}
     #     steps:
     #         - uses: actions/checkout@v1
-
+                # with:
+                #     submodules: true
     #         - name: Prepare compiler
     #           uses: mihails-strasuns/setup-dlang@v0.3.0
     #           with:
@@ -45,7 +46,8 @@ jobs:
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v1
-
+              with:
+                submodules: true
             - name: Prepare compiler
               uses: mihails-strasuns/setup-dlang@v0.3.0
               with:

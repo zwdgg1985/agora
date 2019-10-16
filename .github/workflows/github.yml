@@ -48,10 +48,12 @@ jobs:
     - uses: actions/checkout@v1
       with:
         submodules: true
+    - name: Prepare compiler
+      uses: mihails-strasuns/setup-dlang@v0.3.0
+      with:
+          compiler: ${{ matrix.dc }}
     - name: Install D and Dub
       run: |
-        brew install dmd
-        brew install dub
         brew install sqlite3
     - name: Build and test agora
       run: |

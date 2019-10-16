@@ -3,10 +3,6 @@
 set -xeu
 set -o pipefail
 
-export PATH="${PATH-}:$HOME/bin/"
-export LIBRARY_PATH="${LIBRARY_PATH-}:/usr/local/lib/"
-export PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
-
 brew install sqlite3
 
 mkdir -p $HOME/Dependencies/

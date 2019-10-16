@@ -55,6 +55,7 @@ jobs:
           compiler: ${{ matrix.dc }}
     - name: Install D and Dub
       run: |
+        brew install dub
         brew install sqlite3
     - name: Build and test agora
       run: |

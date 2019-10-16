@@ -19,13 +19,14 @@ jobs:
         brew install dub
         brew install sqlite3
     - name: Build and test agora
+      env:
+        PATH=$HOME/bin/:$PATH
+        PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
+        LIBRARY_PATH=/usr/local/lib/:$LIBRARY_PATH
       run: |
         ./ci/travis_osx_setup.sh
         set -xeu
         set -o pipefail
-        export PATH=$HOME/bin/:$PATH
-        export PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
-        export LIBRARY_PATH=/usr/local/lib/:$LIBRARY_PATH
         dub test -b unittest-cov --skip-registry=all --compiler=dmd
 
   # test_ubuntu:

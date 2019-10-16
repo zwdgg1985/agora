@@ -136,7 +136,7 @@ unittest
 /// test catch-up phase after initial booting (periodic catch-up)
 unittest
 {
-    EnableLogging = true;
+    //EnableLogging = true;
     import std.algorithm;
     import std.range;
     import core.time;

@@ -45,8 +45,3 @@ jobs:
     #           run: |
     #             ./ci/github_linux_setup.sh
     #             ./ci/run.sh
-
-
-    #             dub test -b unittest-cov --skip-registry=all --compiler=${DC}
-    #             rdmd --compiler=${DC} ./tests/runner.d --compiler=${DC} -cov
-    #             dub build --skip-registry=all --compiler=${DC}

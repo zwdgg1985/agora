@@ -52,7 +52,6 @@ jobs:
                   compiler: ${{ matrix.dc }}
             - name: Run test-suite & build Agora
               run: |
-                brew install sqlite3
                 ./ci/travis_linux_setup.sh
                 set -xeu
                 set -o pipefail

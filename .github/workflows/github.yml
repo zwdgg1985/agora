@@ -3,7 +3,12 @@ on: [push, pull_request]
 
 jobs:
   mac_build:
-    # runs-on: macOS-latest
+    name: Build & Run test-suite on Mac OS
+    strategy:
+        matrix:
+            os: [macOS-10.14]
+            # dc: [dmd-2.088.0, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
+            dc: [dmd-2.087.1]
     runs-on: macOS-10.14
     steps:
     - uses: actions/checkout@v1

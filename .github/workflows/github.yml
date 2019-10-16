@@ -2,34 +2,24 @@ name: Build & Test Agora
 on: [push, pull_request]
 
 jobs:
-    test:
-        name: Dub Tests
+    mac_build:
+        name: Build & Run test-suite on Mac
         strategy:
             matrix:
-                os: [ubuntu-latest, macOS-10.14]
+                os: [macOS-10.14]
                 dc: [dmd-2.088.0, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
-
-        runs-on: macOS-10.14
-        steps:
-            - name: Prepare Mac OS Environment
-              run: |
-                brew install sqlite3
-                ./ci/travis_osx_setup.sh
-
-        runs-on: ubuntu-latest
-        steps:
-            - name: Prepare Linux Environment
-              run: |
-                ./ci/travis_linux_setup.sh
 
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v1
 
-            - name: Install D compiler
+            - name: Prepare environment
               uses: mihails-strasuns/setup-dlang@v0.3.0
               with:
                   compiler: ${{ matrix.dc }}
+              run: |
+                brew install sqlite3
+                ./ci/travis_osx_setup.sh
 
             - name: Run test-suite & build Agora
               run: |
@@ -40,71 +30,30 @@ jobs:
                 export PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
                 ./ci/run.sh
 
-            # - name: Code coverage upload
-            #   run: |
-            #     bash <(curl -s https://codecov.io/bash) -cF unittests
+    linux_build:
+        name: Build & Run test-suite on Linux
+        strategy:
+            matrix:
+                os: [ubuntu-latest]
+                dc: [dmd-2.088.0, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
 
-# name: Test builds on multiple OSes
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v1
 
-# on:
-#   push:
-#     branches:
-#       - v0.x.x
+            - name: Prepare environment
+              uses: mihails-strasuns/setup-dlang@v0.3.0
+              with:
+                  compiler: ${{ matrix.dc }}
+              run: |
+                brew install sqlite3
+                ./ci/travis_linux_setup.sh
 
-# jobs:
-#   - name: D Compiler Installation
-
-#   test_mac:
-    # runs-on: macOS-latest
-    # runs-on: macOS-10.14
-    # steps:
-    # - uses: mihails-strasuns/setup-dlang@v0.3.0
-    #   with:
-    #     submodules: true
-    # - name: Install D and Dub
-    #   run: |
-    #     brew install dmd
-    #     brew install ldc
-    #     brew install dub
-    #     brew install sqlite3
-    # - name: Build and test agora
-
-      # run: |
-      #   ./ci/travis_osx_setup.sh
-      #   set -xeu
-      #   set -o pipefail
-      #   export PATH="${PATH-}:$HOME/bin/"
-      #   export LIBRARY_PATH="${LD_LIBRARY_PATH-}:/usr/local/lib/"
-      #   export PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
-      #   dub test -b unittest-cov --skip-registry=all --compiler=dmd
-      #   rdmd --compiler=dmd ./tests/runner.d --compiler=dmd -cov
-      #   dub build --skip-registry=all --compiler=dmd
-
-      # run: |
-      #   ./ci/travis_osx_setup.sh
-      #   set -xeu
-      #   set -o pipefail
-      #   export PATH="${PATH-}:$HOME/bin/"
-      #   export LIBRARY_PATH="${LD_LIBRARY_PATH-}:/usr/local/lib/"
-      #   export PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
-      #   dub test -b unittest-cov --skip-registry=all --compiler=ldc2
-      #   rdmd --compiler=ldc2 ./tests/runner.d --compiler=ldc2 -cov
-      #   dub build --skip-registry=all --compiler=ldc2
-
-  # test_ubuntu:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - uses: actions/checkout@v1
-  #     with:
-  #       submodules: true
-  #   - name: Install D and Dub
-  #     run: |
-  #       DMD_VERSION=2.088.0
-  #       wget http://downloads.dlang.org/releases/2.x/${DMD_VERSION}/dmd_${DMD_VERSION}-0_amd64.deb
-  #       sudo dpkg -i dmd_${DMD_VERSION}-0_amd64.deb
-  #       sudo apt install -f
-  #       rm -fv dmd_${DMD_VERSION}-0_amd64.deb
-  #   - name: Build and test agora
-  #     run: |
-  #       ./ci/travis_linux_setup.sh
-  #       ./ci/run.sh
+            - name: Run test-suite & build Agora
+              run: |
+                set -xeu
+                set -o pipefail
+                export PATH="${PATH-}:$HOME/bin/"
+                export LIBRARY_PATH="${LD_LIBRARY_PATH-}:/usr/local/lib/"
+                export PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
+                ./ci/run.sh

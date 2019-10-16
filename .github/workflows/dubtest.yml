@@ -37,9 +37,9 @@ jobs:
         export PATH="${PATH-}:$HOME/bin/"
         export LIBRARY_PATH="${LD_LIBRARY_PATH-}:/usr/local/lib/"
         export PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
-        dub test -b unittest-cov --skip-registry=all --compiler=ldc
-        rdmd --compiler=ldc ./tests/runner.d --compiler=ldc -cov
-        dub build --skip-registry=all --compiler=ldc
+        dub test -b unittest-cov --skip-registry=all --compiler=ldc2
+        rdmd --compiler=ldc2 ./tests/runner.d --compiler=ldc2 -cov
+        dub build --skip-registry=all --compiler=ldc2
 
   # test_ubuntu:
   #   runs-on: ubuntu-latest

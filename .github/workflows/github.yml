@@ -2,42 +2,8 @@ name: Build & Test Agora
 on: [push, pull_request]
 
 jobs:
-
-  # Fails, linker error with sqlite3.
-  # Removing mihails-strasuns/setup-dlang dependency fixes it.
-  ########################################################################
-  # mac_build:
-  #   name: Build & Run test-suite on Mac OS
-  #   strategy:
-  #       matrix:
-  #           os: [macOS-10.14]
-  #           # dc: [dmd-2.088.1, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
-  #           dc: [dmd-2.086.1]
-  #   runs-on: macOS-10.14
-  #   steps:
-  #   - uses: actions/checkout@v1
-  #     with:
-  #       submodules: true
-  #   - name: Prepare compiler
-  #     uses: mihails-strasuns/setup-dlang@v0.3.0
-  #     with:
-  #         compiler: ${{ matrix.dc }}
-  #   - name: Build and test agora
-  #     run: |
-  #       brew install sqlite3
-  #       ./ci/travis_osx_setup.sh
-  #       set -xeu
-  #       set -o pipefail
-  #       export PATH="${PATH-}:$HOME/bin/"
-  #       export LIBRARY_PATH="${LD_LIBRARY_PATH-}:/usr/local/lib/"
-  #       export PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
-  #       dub test -b unittest-cov --skip-registry=all --compiler=dmd
-  #       rdmd --compiler=dmd ./tests/runner.d --compiler=dmd -cov
-  #       dub build --skip-registry=all --compiler=dmd
-  ########################################################################
-
   test_mac:
-    name: Build & Run test-suite on Mac OS
+    name: MacOS Build
     strategy:
         matrix:
             os: [macOS-10.14]
@@ -53,16 +19,14 @@ jobs:
       uses: mihails-strasuns/setup-dlang@v0.3.0
       with:
           compiler: ${{ matrix.dc }}
-    - name: Install D and Dub
+    - name: Install Dub & Sqlite3
       run: |
+        ## BUG: Must install dub via brew, the one installed via setup-dlang
+        ## doesn't link properly: libsqlite3 linker errors
         brew install dub
         brew install sqlite3
     - name: Build and test agora
       run: |
-        export DC=dmd
-        set -xeu
-        set -o pipefail
-
         ./ci/github_mac_setup.sh
 
         export PATH="${PATH-}:$HOME/bin/"
@@ -72,7 +36,7 @@ jobs:
 
 # Works on Linux:
     # linux_build:
-    #     name: Build & Run test-suite on Linux
+    #     name: Linux Build
     #     strategy:
     #         matrix:
     #             os: [ubuntu-latest]

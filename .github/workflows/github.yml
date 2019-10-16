@@ -8,7 +8,7 @@ jobs:
         matrix:
             os: [macOS-10.14]
             # dc: [dmd-2.088.1, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
-            dc: [dmd-2.088.1]
+            dc: [dmd-2.086.1]
     runs-on: macOS-10.14
     steps:
     - uses: actions/checkout@v1
@@ -18,11 +18,9 @@ jobs:
       uses: mihails-strasuns/setup-dlang@v0.3.0
       with:
           compiler: ${{ matrix.dc }}
-    - name: Install D and Dub
-      run: |
-        brew install sqlite3
     - name: Build and test agora
       run: |
+        brew install sqlite3
         ./ci/travis_osx_setup.sh
         set -xeu
         set -o pipefail

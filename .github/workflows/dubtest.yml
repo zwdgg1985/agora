@@ -1,3 +1,49 @@
+name: Build & Test Agora
+on: [push, pull_request]
+
+jobs:
+    test:
+        name: Dub Tests
+        strategy:
+            matrix:
+                os: [ubuntu-latest, macOS-10.14]
+                dc: [dmd-2.088.0, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
+
+        runs-on: macOS-10.14
+        steps:
+            - name: Prepare Mac OS Environment
+              run: |
+                brew install sqlite3
+                ./ci/travis_osx_setup.sh
+
+        runs-on: ubuntu-latest
+        steps:
+            - name: Prepare Linux Environment
+              run: |
+                ./ci/travis_linux_setup.sh
+
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v1
+
+            - name: Install D compiler
+              uses: mihails-strasuns/setup-dlang@v0.3.0
+              with:
+                  compiler: ${{ matrix.dc }}
+
+            - name: Run test-suite & build Agora
+              run: |
+                set -xeu
+                set -o pipefail
+                export PATH="${PATH-}:$HOME/bin/"
+                export LIBRARY_PATH="${LD_LIBRARY_PATH-}:/usr/local/lib/"
+                export PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
+                ./ci/run.sh
+
+            - name: Code coverage upload
+              run: |
+                bash <(curl -s https://codecov.io/bash) -cF unittests
+
 name: Test builds on multiple OSes
 
 on:
@@ -6,11 +52,13 @@ on:
       - v0.x.x
 
 jobs:
+  - name: D Compiler Installation
+
   test_mac:
     # runs-on: macOS-latest
     runs-on: macOS-10.14
     steps:
-    - uses: actions/checkout@v1
+    - uses: mihails-strasuns/setup-dlang@v0.3.0
       with:
         submodules: true
     - name: Install D and Dub
@@ -20,6 +68,7 @@ jobs:
         brew install dub
         brew install sqlite3
     - name: Build and test agora
+
       # run: |
       #   ./ci/travis_osx_setup.sh
       #   set -xeu
@@ -30,6 +79,7 @@ jobs:
       #   dub test -b unittest-cov --skip-registry=all --compiler=dmd
       #   rdmd --compiler=dmd ./tests/runner.d --compiler=dmd -cov
       #   dub build --skip-registry=all --compiler=dmd
+
       run: |
         ./ci/travis_osx_setup.sh
         set -xeu

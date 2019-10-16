@@ -15,7 +15,7 @@ jobs:
         submodules: true
     - name: Install D and Dub
       run: |
-        # brew install dmd
+        brew install dmd
         brew install ldc
         brew install dub
         brew install sqlite3

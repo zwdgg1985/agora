@@ -55,15 +55,9 @@ jobs:
           compiler: ${{ matrix.dc }}
     - name: Install D and Dub
       run: |
-        brew install dmd
-        brew install dub
         brew install sqlite3
     - name: Build and test agora
       run: |
-        export DC=dmd
-        set -xeu
-        set -o pipefail
-
         ./ci/github_mac_setup.sh
 
         export PATH="${PATH-}:$HOME/bin/"

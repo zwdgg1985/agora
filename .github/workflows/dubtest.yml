@@ -24,8 +24,8 @@ jobs:
         set -xeu
         set -o pipefail
         export PATH=$HOME/bin/
-        export LIBRARY_PATH=:/usr/local/lib/;$LIBRARY_PATH
-        export PKG_CONFIG_PATH: "/usr/local/opt/sqlite/lib/pkgconfig"
+        export LIBRARY_PATH=/usr/local/lib/;$LIBRARY_PATH
+        export PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
         dub test -b unittest-cov --skip-registry=all --compiler=dmd
 
   # test_ubuntu:

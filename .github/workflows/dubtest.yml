@@ -27,6 +27,8 @@ jobs:
         export LIBRARY_PATH="${LD_LIBRARY_PATH-}:/usr/local/lib/"
         export PKG_CONFIG_PATH="/usr/local/opt/sqlite/lib/pkgconfig"
         dub test -b unittest-cov --skip-registry=all --compiler=dmd
+        rdmd --compiler=dmd ./tests/runner.d --compiler=dmd -cov
+        dub build --skip-registry=all --compiler=dmd
 
   # test_ubuntu:
   #   runs-on: ubuntu-latest

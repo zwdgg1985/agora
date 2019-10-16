@@ -3,7 +3,8 @@ on: [push, pull_request]
 
 jobs:
 
-  # Fails, linker error with sqlite3..
+  # Fails, linker error with sqlite3.
+  # Removing mihails-strasuns/setup-dlang dependency fixes it.
   ########################################################################
   # mac_build:
   #   name: Build & Run test-suite on Mac OS
@@ -36,7 +37,13 @@ jobs:
   ########################################################################
 
   test_mac:
-    runs-on: macOS-10.14
+    name: Build & Run test-suite on Mac OS
+    strategy:
+        matrix:
+            os: [macOS-10.14]
+            dc: [dmd-2.087.1]
+
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v1
       with:
@@ -48,6 +55,7 @@ jobs:
         brew install sqlite3
     - name: Build and test agora
       run: |
+        export DC=dmd
         ./ci/github_mac_setup.sh
         ./ci/run.sh
 

@@ -54,16 +54,11 @@ public template AddLogger (string moduleName = __MODULE__)
 /// Convenience alias
 public alias LogLevel = Level;
 
-/// Whether logging is enabled (by default disabled in unittests)
-version (unittest)
-    __gshared bool EnableLogging = false;
+version (unittest) {}
 else
-    __gshared bool EnableLogging = true;
-
-/// Initialize the logger
-static this ()
 {
-    if (EnableLogging)
+    /// Initialize the logger
+    static this ()
     {
         auto appender = new AppendConsole();
         appender.layout(new AgoraLayout());

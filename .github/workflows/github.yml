@@ -7,17 +7,19 @@ jobs:
     strategy:
         matrix:
             os: [macOS-10.14]
-            # dc: [dmd-2.088.0, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
+            # dc: [dmd-2.088.1, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
             dc: [dmd-2.087.1]
     runs-on: macOS-10.14
     steps:
     - uses: actions/checkout@v1
       with:
         submodules: true
+    - name: Prepare compiler
+      uses: mihails-strasuns/setup-dlang@v0.3.0
+      with:
+          compiler: ${{ matrix.dc }}
     - name: Install D and Dub
       run: |
-        brew install dmd
-        brew install dub
         brew install sqlite3
     - name: Build and test agora
       run: |
@@ -37,7 +39,7 @@ jobs:
 #         strategy:
 #             matrix:
 #                 os: [macOS-10.14]
-#                 # dc: [dmd-2.088.0, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
+#                 # dc: [dmd-2.088.1, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
 #                 dc: [dmd-2.087.1]
 
 #         runs-on: ${{ matrix.os }}
@@ -90,7 +92,7 @@ jobs:
     #     strategy:
     #         matrix:
     #             os: [ubuntu-latest]
-    #             # dc: [dmd-2.088.0, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
+    #             # dc: [dmd-2.088.1, dmd-2.087.1, ldc-1.17.0, ldc-1.16.0, dmd-master, ldc-master]
     #             dc: [dmd-2.087.1]
 
     #     runs-on: ${{ matrix.os }}

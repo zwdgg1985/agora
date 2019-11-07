@@ -192,6 +192,18 @@ public struct Scalar
     {
         dg(this.data[]);
     }
+
+    /***************************************************************************
+
+        Returns:
+            a slice of the underlying data storage of the Scalar
+
+    ***************************************************************************/
+
+    public const(ubyte)[] opSlice () const
+    {
+        return this.data[];
+    }
 }
 
 ///

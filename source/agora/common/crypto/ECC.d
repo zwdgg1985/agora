@@ -334,6 +334,20 @@ public struct Point
     {
         this.data = typeof(this.data)(dg(crypto_core_ed25519_BYTES));
     }
+
+    /***************************************************************************
+
+        Implements hashing support
+
+        Params:
+            dg = hashing function
+
+    ***************************************************************************/
+
+    public void computeHash (scope HashDg dg) const nothrow @safe @nogc
+    {
+        dg(this.data[]);
+    }
 }
 
 ///

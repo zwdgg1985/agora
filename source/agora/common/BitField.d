@@ -50,7 +50,7 @@ struct BitField
     {
         // BitArray uses ints as storage, we have to use multiples of 32
         this.storage.length = (num_bits + 31) / 32;
-        this.bit_array.init(this.storage,
+        this.bit_array.initialize(this.storage,
             this.storage.length * uint.sizeof * 8);
     }
 
@@ -106,7 +106,7 @@ struct BitField
         bytes.length = storage_len * 4;
 
         this.storage = cast(uint[])bytes;
-        () @trusted { this.bit_array.init(this.storage, num_bits); }();
+        () @trusted { this.bit_array.initialize(this.storage, num_bits); }();
     }
 
     /// Custom equality support

@@ -178,6 +178,20 @@ public struct Scalar
     {
         this.data = typeof(this.data)(dg(crypto_core_ed25519_SCALARBYTES));
     }
+
+    /***************************************************************************
+
+        Implements hashing support
+
+        Params:
+            dg = hashing function
+
+    ***************************************************************************/
+
+    public void computeHash (scope HashDg dg) const nothrow @safe @nogc
+    {
+        dg(this.data[]);
+    }
 }
 
 ///

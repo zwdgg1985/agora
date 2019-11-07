@@ -64,32 +64,272 @@ nothrow @nogc unittest
     assert(verify(kp.V, signature, "Hello world"));
 }
 
-/// Multi-signature example
-nothrow @nogc unittest
+import Agora = agora.common.crypto.Key;
+import agora.common.Amount;
+
+/// Check whether the wanted amount of blocks are
+/// allowed to be signed with the given staked amount
+private bool isWithinLimits ( uint num_blocks, Amount amount )
+{
+    // todo: Amount doesn't support division yet, discarding decimal part,
+    // however we can just sum the amounts and check the integral amount later.
+    return num_blocks <= (amount.integral / 40_000) * 2016 * 2;
+}
+
+///
+unittest
+{
+    assert(isWithinLimits(2016, Amount.FreezeAmount));
+    assert(isWithinLimits(4032, Amount.FreezeAmount));
+    assert(!isWithinLimits(4033, Amount.FreezeAmount));
+}
+
+/// multisig example
+unittest
 {
     // Setup
     static immutable string secret = "BOSAGORA for the win";
     Pair kp1 = Pair.random();
-    Pair kp2 = Pair.random();
     Pair R1 = Pair.random();
+
+    Pair kp2 = Pair.random();
     Pair R2 = Pair.random();
+
     Point R = R1.V + R2.V;
     Point X = kp1.V + kp2.V;
 
     auto sig1 = sign(kp1.v, X, R, R1.v, secret);
     auto sig2 = sign(kp2.v, X, R, R2.v, secret);
-    auto sig3 = Signature(R, sig1.s + sig2.s);
+    auto multi_sig = Signature(R, sig1.s + sig2.s);
 
-    // No one can verify any of those individually
-    assert(!verify(kp1.V, sig1, secret));
-    assert(!verify(kp1.V, sig2, secret));
-    assert(!verify(kp2.V, sig2, secret));
-    assert(!verify(kp2.V, sig1, secret));
-    assert(!verify(kp1.V, sig3, secret));
-    assert(!verify(kp2.V, sig3, secret));
+    assert(verify(X, multi_sig, secret));
+}
 
-    // But multisig works
-    assert(verify(X, sig3, secret));
+unittest
+{
+    Hash msg_1 = "Block #1".hashFull();
+    Hash msg_2 = "Block #1".hashFull();
+
+    Scalar n1_r1;
+    Scalar n2_r1;
+
+    // keys
+    Pair kp1 = Pair.random();
+    Pair kp2 = Pair.random();
+
+    // random points
+    Pair N1_R = Pair.random();
+    Pair N2_R = Pair.random();
+
+    // these are derived from the previous block sig or previous enrollment
+    Point N1_R1;
+    Point N2_R1;
+
+    // node #1 signing blocks
+    {
+        // commit to just 2 blocks
+        Hash[] n1_preimages;
+        n1_preimages ~= N1_R.v.hashFull();
+        n1_preimages ~= N1_R.v.hashFull().hashFull();
+
+        Scalar r0 = N1_R.v;
+
+        // sign block #1
+        Scalar n1X0 = Scalar(n1_preimages[$ - 1]);
+        n1_r1 = r0 + n1X0;
+        N1_R1 = N1_R.V + n1X0.toPoint();
+    }
+
+    // node #2 signing blocks
+    {
+        // commit to just 2 blocks
+        Hash[] n2_preimages;
+        n2_preimages ~= N2_R.v.hashFull();
+        n2_preimages ~= N2_R.v.hashFull().hashFull();
+
+        Scalar r0 = N2_R.v;
+
+        // sign block #1
+        Scalar n2X0 = Scalar(n2_preimages[$ - 1]);
+        n2_r1 = r0 + n2X0;
+        N2_R1 = N2_R.V + n2X0.toPoint();
+    }
+
+    auto R = N1_R1 + N2_R1;
+
+    // all validator public keys
+    Point X = kp1.V + kp2.V;
+
+    // both sign on R and their own r
+    Signature N1_SIG1 = sign(kp1.v, X, R, n1_r1, msg_1);
+    Signature N2_SIG1 = sign(kp2.v, X, R, n2_r1, msg_1);
+
+    // multisig for block #1
+    Signature multisig_1 = Signature(R, N1_SIG1.s + N2_SIG1.s);
+
+    assert(verify(X, multisig_1, msg_1));
+}
+
+// K: A public key matching a frozen UTXO;
+// X: The nth image of their source of randomness;
+// N: A number within bounds [0; (Balance(K) / 40,000) * 2016 * 2 (tentative value)];
+// R: The initial R used for signing;
+// S: A schnorr signature for the message H(K, X, N, R) and the key K, using R.
+struct Enrollment
+{
+    Point utxo_key;            // K
+    Hash nth_image;            // X (the Nth image of the scalar)
+    uint num_blocks;           // N: the number of blocks allowed to sign for
+    Point rand_point;          // R: the commited Point of r
+    Signature signature;       // S: signature using r
+}
+
+struct AllData
+{
+    Enrollment enr;
+    Pair kp;  // utxo key
+    Pair random_pair;   // the private r
+    Hash[] preimages;
+}
+
+AllData[] alldatas;
+AllData alldata () { return alldatas[0]; }
+
+unittest
+{
+    import agora.consensus.data.Transaction;
+
+    //auto kp = Agora.KeyPair.random();
+    auto kp = Pair.random();  // just for utxo
+    Pair R = Pair.random();
+
+    // this is our "utxo"
+    //auto tx = newCoinbaseTX(kp.address, Amount.FreezeAmount);
+
+    // we assume (but need to calculate later!) that the public key at
+    // this address contains this staked amount
+    const num_blocks = 4032;
+    assert(isWithinLimits(num_blocks, Amount.FreezeAmount));
+
+    Hash[] preimages;  // used in the reveal phase
+    Hash last_image = hashFull(R.v);  // initial
+    preimages ~= last_image;
+    foreach (idx; 0 .. num_blocks - 2)
+    {
+        last_image = last_image.hashFull();
+        preimages ~= last_image;
+    }
+    assert(preimages.length == num_blocks - 1);
+
+    // extract the scalar (priv key) from the libsodium Seed
+    //auto priv_key = Scalar(kp.seed[]);
+    //auto pub_key = priv_key.toPoint();
+
+    Enrollment enr =
+    {
+        //utxo_key   : kp.address,
+        utxo_key   : kp.V,
+        nth_image  : preimages[$ - 1].hashFull(),
+        num_blocks : num_blocks,
+        rand_point : R.V,
+    };
+
+    /// the message to sign: H(K, X, N, R)
+    Hash message = hashMulti(enr.utxo_key, enr.nth_image, enr.num_blocks,
+        enr.rand_point);
+
+    /// the signature for the enrollment
+    enr.signature = sign(kp.v, kp.V, R.V, R.v, message);
+
+    alldatas ~= AllData(enr, kp, R, preimages);
+}
+
+///
+unittest
+{
+    import agora.common.BitField;
+    import agora.common.crypto.Key;
+    import agora.common.crypto.Schnorr;
+    import agora.consensus.data.Block;
+    import agora.consensus.data.Transaction;
+
+    immutable Hash merkle =
+        Hash(`0xdb6e67f59fe0b30676037e4970705df8287f0de38298dcc09e50a8e85413` ~
+        `959ca4c52a9fa1edbe6a47cbb6b5e9b2a19b4d0877cc1f5955a7166fe6884eecd2c3`);
+
+    immutable address = `GDD5RFGBIUAFCOXQA246BOUPHCK7ZL2NSHDU7DVAPNPTJJKVPJMNLQFW`;
+    PublicKey pubkey = PublicKey.fromString(address);
+
+    Transaction tx =
+    {
+        TxType.Payment,
+        inputs: [ Input.init ],
+        outputs: [
+            Output(Amount(62_500_000L * 10_000_000L), pubkey),
+            Output(Amount(62_500_000L * 10_000_000L), pubkey),
+            Output(Amount(62_500_000L * 10_000_000L), pubkey),
+            Output(Amount(62_500_000L * 10_000_000L), pubkey),
+            Output(Amount(62_500_000L * 10_000_000L), pubkey),
+            Output(Amount(62_500_000L * 10_000_000L), pubkey),
+            Output(Amount(62_500_000L * 10_000_000L), pubkey),
+            Output(Amount(62_500_000L * 10_000_000L), pubkey),
+        ],
+    };
+
+    auto validators = BitField(6);
+    validators[0] = true;
+    validators[2] = true;
+    validators[4] = true;
+
+    Block block =
+    {
+        header:
+        {
+            prev_block:  Hash.init,
+            height:      0,
+            merkle_root: merkle,
+            validators:  validators,
+        },
+        txs: [ tx ],
+        merkle_tree: [ merkle ],
+    };
+
+    auto R1 = alldata.enr.rand_point;
+
+    // previous commited Nth hash of the preimage
+    Hash X1 = alldata.enr.nth_image;
+
+    // previous block header contains the previous X
+    Hash message = block.header.hashFull();
+
+    // the preimage that will be revealed
+    auto preimage = alldata.preimages[$ - 1];
+
+    // verification
+    assert(preimage.hashFull() == X1);
+
+    Scalar X2 = Scalar(preimage);
+
+    Scalar priv_R2 = alldata.random_pair.v + X2;
+    Point pub_R2 = priv_R2.toPoint();
+
+    auto kp = alldata.kp;
+
+    block.header.signature = sign(kp.v, kp.V, pub_R2, priv_R2, message);
+
+    /// now we need to verify with the enrollment information
+    assert(verify(kp.V, block.header.signature, message));
+}
+
+/// Simple example
+nothrow @nogc unittest
+{
+    static immutable string secret = "BOSAGORA for the win";
+    Pair kp1 = Pair.random();
+    Pair R1 = Pair.random();
+
+    auto first = sign(kp1.v, kp1.V, R1.V, R1.v, secret);
+    assert(verify(kp1.V, first, secret));
 }
 
 /// Represent a signature (R, s)

@@ -110,7 +110,7 @@ unittest
 // N: A number within bounds [0; (Balance(K) / 40,000) * 2016 * 2 (tentative value)];
 // R: The initial R used for signing;
 // S: A schnorr signature for the message H(K, X, N, R) and the key K, using R.
-struct Enrollment
+struct EnrollTx
 {
     Point utxo_key;            // K
     Hash nth_image;            // X (the Nth image of the scalar)
@@ -156,7 +156,7 @@ class Validator
         }
         assert(this.preimages.length == num_blocks - 1);
 
-        Enrollment enr =
+        EnrollTx enr =
         {
             utxo_key   : this.kp.V,
             nth_image  : this.preimages[$ - 1].hashFull(),
@@ -174,6 +174,18 @@ class Validator
         /// at this point, we would typically send the enrollment transaction
         // ..
     }
+
+    /// Reveal the preimage for the provided block index
+    public Hash getPreimage (size_t block_idx)
+    {
+        return this.preimages[($ - block_idx) - 1];
+    }
+
+    /////
+    //private Signature signBlock ()
+    //{
+
+    //}
 }
 
 unittest
@@ -187,7 +199,6 @@ unittest
 unittest
 {
     Hash msg_1 = "Block #1".hashFull();
-    Hash msg_2 = "Block #1".hashFull();
 
     Scalar n1_r1;
     Scalar n2_r1;
@@ -204,31 +215,25 @@ unittest
     Point N1_R1;
     Point N2_R1;
 
-    // node #1 signing blocks
+    // node #1
     {
-        // commit to just 2 blocks
         Hash[] n1_preimages;
         n1_preimages ~= N1_R.v.hashFull();
         n1_preimages ~= N1_R.v.hashFull().hashFull();
 
         Scalar r0 = N1_R.v;
-
-        // sign block #1
         Scalar n1X0 = Scalar(n1_preimages[$ - 1]);
         n1_r1 = r0 + n1X0;
         N1_R1 = N1_R.V + n1X0.toPoint();
     }
 
-    // node #2 signing blocks
+    // node #2
     {
-        // commit to just 2 blocks
         Hash[] n2_preimages;
         n2_preimages ~= N2_R.v.hashFull();
         n2_preimages ~= N2_R.v.hashFull().hashFull();
 
         Scalar r0 = N2_R.v;
-
-        // sign block #1
         Scalar n2X0 = Scalar(n2_preimages[$ - 1]);
         n2_r1 = r0 + n2X0;
         N2_R1 = N2_R.V + n2X0.toPoint();
@@ -237,21 +242,21 @@ unittest
     auto R = N1_R1 + N2_R1;
 
     // all validator public keys
-    Point X = kp1.V + kp2.V;
+    Point PubKeys = kp1.V + kp2.V;
 
     // both sign on R and their own r
-    Signature N1_SIG1 = sign(kp1.v, X, R, n1_r1, msg_1);
-    Signature N2_SIG1 = sign(kp2.v, X, R, n2_r1, msg_1);
+    Signature N1_SIG1 = sign(kp1.v, PubKeys, R, n1_r1, msg_1);
+    Signature N2_SIG1 = sign(kp2.v, PubKeys, R, n2_r1, msg_1);
 
     // multisig for block #1
     Signature multisig_1 = Signature(R, N1_SIG1.s + N2_SIG1.s);
 
-    assert(verify(X, multisig_1, msg_1));
+    assert(verify(PubKeys, multisig_1, msg_1));
 }
 
 struct AllData
 {
-    Enrollment enr;
+    EnrollTx enr;
     Pair kp;  // utxo key
     Pair random_pair;   // the private r
     Hash[] preimages;
@@ -290,7 +295,7 @@ unittest
     //auto priv_key = Scalar(kp.seed[]);
     //auto pub_key = priv_key.toPoint();
 
-    Enrollment enr =
+    EnrollTx enr =
     {
         //utxo_key   : kp.address,
         utxo_key   : kp.V,

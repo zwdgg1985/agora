@@ -105,6 +105,85 @@ unittest
     assert(verify(X, multi_sig, secret));
 }
 
+// K: A public key matching a frozen UTXO;
+// X: The nth image of their source of randomness;
+// N: A number within bounds [0; (Balance(K) / 40,000) * 2016 * 2 (tentative value)];
+// R: The initial R used for signing;
+// S: A schnorr signature for the message H(K, X, N, R) and the key K, using R.
+struct Enrollment
+{
+    Point utxo_key;            // K
+    Hash nth_image;            // X (the Nth image of the scalar)
+    uint num_blocks;           // N: the number of blocks allowed to sign for
+    Point rand_point;          // R: the commited Point of r
+    Signature signature;       // S: signature using r
+}
+
+class Validator
+{
+    // keys to the kingdom
+    private Pair kp;
+
+    // Random value for this node
+    private Pair R;
+
+    // the list of preimages to reveal on each round
+    // (note: could also be generated lazily to save memory)
+    private Hash[] preimages;
+
+
+    /// Ctor
+    public this ()
+    {
+        this.kp = Pair.random();
+        this.R = Pair.random();
+        this.enroll();
+    }
+
+    /// Prepare the enrollment transaction and the preimages
+    private void enroll ()
+    {
+        // might be hardcoded by the protocol for now to keep it simple
+        const num_blocks = 4032;
+        assert(isWithinLimits(num_blocks, Amount.FreezeAmount));
+
+        Hash last_image = hashFull(R.v);  // initial
+        this.preimages ~= last_image;
+        foreach (idx; 0 .. num_blocks - 2)
+        {
+            last_image = last_image.hashFull();
+            this.preimages ~= last_image;
+        }
+        assert(this.preimages.length == num_blocks - 1);
+
+        Enrollment enr =
+        {
+            utxo_key   : this.kp.V,
+            nth_image  : this.preimages[$ - 1].hashFull(),
+            num_blocks : num_blocks,
+            rand_point : this.R.V,
+        };
+
+        /// the message to sign: H(K, X, N, R)
+        Hash message = hashMulti(enr.utxo_key, enr.nth_image, enr.num_blocks,
+            enr.rand_point);
+
+        /// the signature for the enrollment
+        enr.signature = sign(kp.v, kp.V, R.V, R.v, message);
+
+        /// at this point, we would typically send the enrollment transaction
+        // ..
+    }
+}
+
+unittest
+{
+    import std.range;
+
+    Validator[] vds;
+    2.iota.each!(_ => vds ~= new Validator());
+}
+
 unittest
 {
     Hash msg_1 = "Block #1".hashFull();
@@ -168,20 +247,6 @@ unittest
     Signature multisig_1 = Signature(R, N1_SIG1.s + N2_SIG1.s);
 
     assert(verify(X, multisig_1, msg_1));
-}
-
-// K: A public key matching a frozen UTXO;
-// X: The nth image of their source of randomness;
-// N: A number within bounds [0; (Balance(K) / 40,000) * 2016 * 2 (tentative value)];
-// R: The initial R used for signing;
-// S: A schnorr signature for the message H(K, X, N, R) and the key K, using R.
-struct Enrollment
-{
-    Point utxo_key;            // K
-    Hash nth_image;            // X (the Nth image of the scalar)
-    uint num_blocks;           // N: the number of blocks allowed to sign for
-    Point rand_point;          // R: the commited Point of r
-    Signature signature;       // S: signature using r
 }
 
 struct AllData

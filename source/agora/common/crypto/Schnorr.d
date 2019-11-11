@@ -84,27 +84,6 @@ unittest
     assert(!isWithinLimits(4033, Amount.FreezeAmount));
 }
 
-/// multisig example
-unittest
-{
-    // Setup
-    static immutable string secret = "BOSAGORA for the win";
-    Pair kp1 = Pair.random();
-    Pair R1 = Pair.random();
-
-    Pair kp2 = Pair.random();
-    Pair R2 = Pair.random();
-
-    Point R = R1.V + R2.V;
-    Point X = kp1.V + kp2.V;
-
-    auto sig1 = sign(kp1.v, X, R, R1.v, secret);
-    auto sig2 = sign(kp2.v, X, R, R2.v, secret);
-    auto multi_sig = Signature(R, sig1.s + sig2.s);
-
-    assert(verify(X, multi_sig, secret));
-}
-
 // K: A public key matching a frozen UTXO;
 // X: The nth image of their source of randomness;
 // N: A number within bounds [0; (Balance(K) / 40,000) * 2016 * 2 (tentative value)];

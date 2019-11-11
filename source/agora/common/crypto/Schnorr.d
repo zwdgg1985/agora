@@ -177,7 +177,51 @@ unittest
 
 /// Notes about Schnorr signatures:
 /// signer has a secret key x, ephemeral (single-use) secret key k.
-/// Publishes a public key xG, so x * G (generator)
+/// Publishes a public key xG, so x * G (generator).
+/// A signature is the ephemeral public key kG as well:
+/// s = k − ex
+/// where e = H(kG || xG || message).
+/// Note: Sometimes 'e' is used but it means 'c' (challenge)
+/// Verified by checking:
+/// sG = kG − exG
+///
+/// Another example:
+/// Glossary
+/// m - Message.
+/// d = Private Key.
+/// k = Random nonce
+/// G = Generator Point.
+/// Point = scalar*G = (x,y)
+/// Public key = dG
+/// s = k + e*d,
+/// where k is random scalar, e is the challenge,
+/// and d is the private key
+///
+/*
+Schnorr signatures explained:
+
+m = Message
+x = Private key
+G = Generator point
+X = Public key (X = x*G, public key = private key * generator point)
+(R, s) = Signature (R is the x co-ordinate of a random value after multiplying by the generator point, s is the signature)
+H(x, y, z..) = Cryptographic Hashing function
+* Capitalised letters are usually points on an Elliptic curve (except the Hashing function)
+* Lower cased letters are usually scalars
+====================================================================
+Schnorr Signatures
+====================================================================
+Signature creation:
+(R, s) = (r*G, r + H(X, R, m) * x)
+* r is a random nonce
+R = random nonce * generator point (becomes a point on the Elliptic Curve)
+s = random nonce + Hash function(Users Public Key, Random point on Elliptic Curve, the message (transaction)) * Private Key
+
+Signature verification:
+s*G = R + H(X,R,m) * X
+* Verification is a linear equation, both sides of the equation must be satisfied for the signature to be valid
+signature * generator point = Random Point on Elliptic Curve + Hashing function(Public Key, Random Point on Elliptic Curve, message (transaction)) * Public Key
+*/
 unittest
 {
     Hash msg_1 = "Block #1".hashFull();

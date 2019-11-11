@@ -175,6 +175,9 @@ unittest
     2.iota.each!(_ => vds ~= new Validator());
 }
 
+/// Notes about Schnorr signatures:
+/// signer has a secret key x, ephemeral (single-use) secret key k.
+/// Publishes a public key xG, so x * G (generator)
 unittest
 {
     Hash msg_1 = "Block #1".hashFull();
@@ -182,11 +185,11 @@ unittest
     Scalar n1_r1;
     Scalar n2_r1;
 
-    // keys
+    // keys (secret)
     Pair kp1 = Pair.random();
     Pair kp2 = Pair.random();
 
-    // random points
+    // random points (secret)
     Pair N1_R = Pair.random();
     Pair N2_R = Pair.random();
 

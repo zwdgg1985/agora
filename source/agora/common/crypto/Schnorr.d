@@ -339,13 +339,13 @@ unittest
 
     /// the signature for the enrollment
     enr.signature = sign(kp.v, kp.V, new_R, new_r, message);
-    //enr.signature = sign(kp.v, kp.V, R.V, R.v, message);
 
     Scalar X_Scalar = Scalar(enr.nth_image);
     Point R_Verify = enr.rand_point + X_Scalar.toPoint();
 
     assert(verify(kp.V, enr.signature, message));
 
+    // must verify that node knows R
     assert(enr.signature.R == R_Verify);
 
     alldatas ~= AllData(enr, kp, R, preimages);
@@ -403,14 +403,16 @@ unittest
 
     auto R1 = alldata.enr.rand_point;
 
+
+
     // previous commited Nth hash of the preimage
-    Hash X1 = alldata.enr.nth_image;
+    //Hash X1 = alldata.enr.nth_image;
 
     // previous block header contains the previous X
-    Hash message = block.header.hashFull();
+    //Hash message = block.header.hashFull();
 
     // the preimage that will be revealed
-    auto preimage = alldata.preimages[$ - 1];
+    //auto preimage = alldata.preimages[$ - 1];
 
     // verification
     //assert(preimage.hashFull() == X1);

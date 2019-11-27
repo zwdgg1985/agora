@@ -94,6 +94,77 @@ T combine (T)(T lhs, T rhs)
         return lhs + rhs;
 }
 
+//struct AllData
+//{
+//    EnrollTx enr;
+//    Pair kp;  // utxo key
+//    Pair random_pair;   // the private r
+//    Hash[] preimages;
+//}
+
+//AllData[] alldatas;
+//AllData alldata () { return alldatas[0]; }
+
+//unittest
+//{
+//    import agora.consensus.data.Transaction;
+
+//    auto kp = Pair.random();    // just for utxo
+//    Pair R = Pair.random();     // starting random value (generated randomly)
+//    Scalar X = Scalar.random();
+
+//    version (none)
+//    {
+//        // this is our "utxo"
+//        auto tx = newCoinbaseTX(kp.address, Amount.FreezeAmount);
+//    }
+
+//    // we assume (but need to calculate later!) that the public key at
+//    // this address contains this staked amount
+//    const num_blocks = 4032;
+//    assert(isWithinLimits(num_blocks, Amount.FreezeAmount));
+
+//    Hash[] preimages;
+//    {
+//        Hash last_image = X.hashFull();
+//        preimages ~= last_image;
+//        foreach (idx; 0 .. num_blocks - 2)
+//        {
+//            last_image = last_image.hashFull();
+//            preimages ~= last_image;
+//        }
+//        assert(preimages.length == num_blocks - 1);
+//    }
+
+//    EnrollTx enr =
+//    {
+//        utxo_key   : kp.V,
+//        nth_image  : preimages[$ - 1],
+//        num_blocks : num_blocks,
+//        rand_point : R.V,
+//    };
+
+//    /// the message to sign: H(K, X, N, R)
+//    Hash message = hashMulti(enr.utxo_key, enr.nth_image, enr.num_blocks,
+//        enr.rand_point);
+
+//    auto new_r = R.v + Scalar(enr.nth_image);
+//    auto new_R = new_r.toPoint();
+
+//    /// the signature for the enrollment
+//    enr.signature = sign(kp.v, kp.V, new_R, new_r, message);
+//    //enr.signature = sign(kp.v, kp.V, R.V, R.v, message);
+
+//    Scalar X_Scalar = Scalar(enr.nth_image);
+//    Point R_Verify = enr.rand_point + X_Scalar.toPoint();
+
+//    assert(verify(kp.V, enr.signature, message));
+
+//    assert(enr.signature.R == R_Verify);
+
+//    alldatas ~= AllData(enr, kp, R, preimages);
+//}
+
 /// validator signature scheme
 unittest
 {

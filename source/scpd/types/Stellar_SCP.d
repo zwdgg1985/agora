@@ -17,6 +17,7 @@ import vibe.data.json;
 
 import scpd.Cpp;
 import scpd.types.Stellar_types;
+import scpd.types.Utils;
 import scpd.types.XDRBase;
 
 import core.stdc.config;
@@ -167,6 +168,38 @@ struct SCPQuorumSet {
     uint32_t threshold;
     xvector!(PublicKey) validators;
     xvector!(SCPQuorumSet) innerSets;
+
+    extern(D) public this(this) @safe nothrow
+    {
+        auto src_validators = this.validators;
+        this.validators = typeof(this.validators).init;
+        foreach (validator; src_validators)
+            this.validators.push_back(validator);
+
+        auto src_innerSets = this.innerSets;
+        this.innerSets = typeof(this.innerSets).init;
+        foreach (innerSets; src_innerSets)
+        {
+            SCPQuorumSet new_set = innerSets;
+            this.innerSets.push_back(new_set);
+        }
+    }
+
+    extern(D) void opAssign ( SCPQuorumSet rhs ) @safe nothrow
+    {
+        this.threshold = rhs.threshold;
+
+        this.validators = typeof(this.validators).init;
+        foreach (validator; rhs.validators)
+            this.validators.push_back(validator);
+
+        this.innerSets = typeof(this.innerSets).init;
+        foreach (sub; rhs.innerSets)
+        {
+            SCPQuorumSet dupe = sub;
+            this.innerSets.push_back(dupe);
+        }
+    }
 }
 
 static assert(SCPQuorumSet.sizeof == 56);

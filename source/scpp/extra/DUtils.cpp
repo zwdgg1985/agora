@@ -55,9 +55,11 @@ CPPSETFOREACHINST(unsigned int)
 
 #define CPPSETEMPTYINST(T) template bool cpp_set_empty<T>(const void*);
 CPPSETEMPTYINST(Value)
-CPPSETEMPTYINST(SCPBallot)
-CPPSETEMPTYINST(PublicKey)
 CPPSETEMPTYINST(unsigned int)
+
+#define CPPSETINSERTINST(T) template void cpp_set_insert<T>(void*, void*);
+CPPSETINSERTINST(Value)
+CPPSETINSERTINST(unsigned int)
 
 void callCPPDelegate (void* cb)
 {

@@ -104,6 +104,8 @@ private:
 
     void stopNomination();
 
+    set!NodeID getNominationLeaders () const;
+
     bool isFullyValidated() const;
     void setFullyValidated(bool fullyValidated);
 
@@ -115,8 +117,11 @@ private:
         BALLOT_PROTOCOL_TIMER = 1
     }
 
-  protected:
-    vector!SCPEnvelope getEntireCurrentState();
+    // workaround: TestSCP is a friend class in C++
+    version (unittest)
+        public vector!SCPEnvelope getEntireCurrentState();
+    else
+        protected vector!SCPEnvelope getEntireCurrentState();
 }
 
 static assert(Slot.sizeof == 400);

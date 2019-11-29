@@ -80,6 +80,10 @@ extern(C++) public shared_ptr!SCPQuorumSet makeSharedSCPQuorumSet (
 /// std::set.empty() support
 nothrow pure @nogc extern(C++) private bool cpp_set_empty(T)(const(void)* set);
 
+/// std::set.insert() support
+nothrow pure @nogc extern(C++) private void cpp_set_insert(T)(void* set,
+    void* key);
+
 extern(C++, `std`) {
     /// Binding: Needs to be instantiated on C++ side
     shared_ptr!T make_shared(T, Args...)(Args args);
@@ -99,6 +103,11 @@ extern(C++, `std`) {
     {
         void*[3] ptr;
 
+        this (Key key)
+        {
+            this.insert(key);
+        }
+
         /// Foreach support
         extern(D) public int opApply (scope int delegate(ref const(Key)) dg) const
         {
@@ -116,6 +125,12 @@ extern(C++, `std`) {
         extern(D) bool empty () const nothrow pure @nogc
         {
             return cpp_set_empty!Key(cast(const void*)&this);
+        }
+
+        /// Returns: true if the set is empty
+        extern(D) void insert (Key key) const nothrow pure @nogc
+        {
+            return cpp_set_insert!Key(cast(void*)&this, cast(void*)&key);
         }
     }
 
@@ -239,7 +254,7 @@ extern(C++, (StdNS!())) struct vector (T, Alloc = allocator!T)
             return this._start[start .. end];
         }
 
-        public bool opEquals (const ref vector rhs) const pure nothrow @nogc @safe
+        public bool opEquals (const ref vector rhs) const /*pure*/ nothrow /*@nogc*/ @safe
         {
             import std.range : zip;
             if (this.length != rhs.length)

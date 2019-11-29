@@ -30,6 +30,12 @@ bool cpp_set_empty(const void* setptr)
     return ((const std::set<T>*)setptr)->empty();
 }
 
+template<typename T>
+void cpp_set_insert(void* setptr, void* key)
+{
+    ((std::set<T>*)setptr)->insert(*(T*)key);
+}
+
 template<typename T, typename VectorT>
 void push_back(VectorT& this_, T& value)
 {

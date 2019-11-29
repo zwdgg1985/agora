@@ -174,7 +174,6 @@ Value toValue (T)(T value)
     static struct S
     {
         T value;
-        mixin DefaultSerializer!();
     }
 
     return Value(serializeFull(S(value)).toVec());

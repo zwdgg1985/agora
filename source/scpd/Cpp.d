@@ -255,6 +255,11 @@ extern(C++, (StdNS!())) struct vector (T, Alloc = allocator!T)
 
         alias opDollar = length;
 
+        public bool empty ()
+        {
+            return this.length() == 0;
+        }
+
         string toString() const @trusted
         {
             bool first = true;

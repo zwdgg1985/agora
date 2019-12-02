@@ -42,6 +42,7 @@ import vibe.web.rest : RestException;
 
 import std.algorithm;
 import std.exception;
+import std.format;
 import std.path : buildPath;
 import std.range;
 
@@ -125,11 +126,11 @@ public class Node : API
             auto quorum_set = toSCPQuorumSet(this.config.quorum);
             normalizeQSet(quorum_set);
 
-            // todo: assertion fails do the misconfigured(?) threshold of 1 which
-            // is lower than vBlockingSize in QuorumSetSanityChecker::checkSanity
-            const ExtraChecks = false;
-            enforce(isQuorumSetSane(quorum_set, ExtraChecks),
-                "Configured quorum set is not considered valid by SCP");
+            // for safety reasons our threshold should be 50% + 1 of nodes
+            const Require50PercPlus1 = true;
+            enforce(isQuorumSetSane(quorum_set, Require50PercPlus1),
+                format("Configured quorum set is not considered valid by SCP: %s",
+                    quorum_set));
 
             import agora.common.Set;
             import std.typecons;

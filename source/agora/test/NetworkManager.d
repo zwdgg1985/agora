@@ -52,7 +52,7 @@ unittest
 }
 
 /// test behavior when a node sends bad block data
-unittest
+version (none) unittest
 {
     import agora.common.BanManager;
     import agora.consensus.data.Block;

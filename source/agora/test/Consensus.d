@@ -25,6 +25,8 @@ import agora.consensus.data.UTXOSet;
 import agora.consensus.Genesis;
 import agora.test.Base;
 
+version(none):
+
 /// test cyclic quorum config
 unittest
 {

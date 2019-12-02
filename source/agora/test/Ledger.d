@@ -89,7 +89,7 @@ unittest
 }
 
 /// test catch-up phase after initial booting (periodic catch-up)
-unittest
+version (none) unittest
 {
     import std.algorithm;
     import std.range;

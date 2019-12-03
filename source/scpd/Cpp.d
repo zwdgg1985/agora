@@ -27,6 +27,7 @@
 
 module scpd.Cpp;
 
+import scpd.types.Stellar_SCP;
 //import core.stdcpp.exception;
 import std.meta;
 
@@ -72,6 +73,9 @@ extern(C++, (StdNS!())) {
 
 /// C++ support for foreach
 extern(C++) private int cpp_set_foreach(T)(void* set, void* ctx, void* cb);
+
+extern(C++) public shared_ptr!SCPQuorumSet makeSharedSCPQuorumSet (
+    ref const(SCPQuorumSet));
 
 /// std::set.empty() support
 nothrow pure @nogc extern(C++) private bool cpp_set_empty(T)(const(void)* set);

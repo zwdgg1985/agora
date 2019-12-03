@@ -219,12 +219,6 @@ extern(C++, (StdNS!())) struct vector (T, Alloc = allocator!T)
 
     extern(D)
     {
-        public this (T elem)
-        {
-            import scpd.types.Utils;
-            push_back(this, elem);
-        }
-
         /// TODO: Separate from `vector` definition
         private static struct ConstIterator
         {

@@ -60,6 +60,8 @@ CPPSETEMPTYINST(unsigned int)
 #define CPPSETSIZEINST(T) template size_t cpp_set_size<T>(const void*);
 CPPSETSIZEINST(Value)
 CPPSETSIZEINST(unsigned int)
+CPPSETSIZEINST(SCPBallot)
+CPPSETSIZEINST(PublicKey)
 
 #define CPPSETINSERTINST(T) template void cpp_set_insert<T>(void*, void*);
 CPPSETINSERTINST(Value)

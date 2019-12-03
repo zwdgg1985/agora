@@ -32,17 +32,23 @@ opaque_vec<> XDRToOpaque(const stellar::SCPStatement& param)
 #define PUSHBACKINST2(T, VT) template void push_back<T, VT>(VT&, T&);
 #define PUSHBACKINST3(T, V) template void push_back<T, V<T>>(V<T>&, T&);
 
+PUSHBACKINST1(unsigned char)
+PUSHBACKINST1(xvector<unsigned char>)
+PUSHBACKINST1(SCPEnvelope)
+PUSHBACKINST1(PublicKey)
+PUSHBACKINST1(SCPQuorumSet)
+
+PUSHBACKINST2(const SCPEnvelope, xvector<SCPEnvelope>)
+PUSHBACKINST2(const SCPBallot, xvector<SCPBallot>)
+PUSHBACKINST2(const SCPEnvelope, std::vector<SCPEnvelope>)
+PUSHBACKINST2(const SCPBallot, std::vector<SCPBallot>)
 PUSHBACKINST2(const PublicKey, xvector<PublicKey>)
 PUSHBACKINST3(xvector<unsigned char>, std::vector)
 PUSHBACKINST3(unsigned char, std::vector)
 
-PUSHBACKINST1(unsigned char)
-PUSHBACKINST1(xvector<unsigned char>)
-
-PUSHBACKINST1(PublicKey)
-PUSHBACKINST1(SCPQuorumSet)
 PUSHBACKINST3(PublicKey, std::vector)
 PUSHBACKINST3(SCPEnvelope, std::vector)
+PUSHBACKINST3(SCPBallot, std::vector)
 PUSHBACKINST3(SCPQuorumSet, std::vector)
 
 template opaque_vec<> duplicate<opaque_vec<>>(opaque_vec<> const&);

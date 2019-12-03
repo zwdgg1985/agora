@@ -56,6 +56,8 @@ CPPSETFOREACHINST(unsigned int)
 #define CPPSETEMPTYINST(T) template bool cpp_set_empty<T>(const void*);
 CPPSETEMPTYINST(Value)
 CPPSETEMPTYINST(unsigned int)
+CPPSETEMPTYINST(SCPBallot)
+CPPSETEMPTYINST(PublicKey)
 
 #define CPPSETSIZEINST(T) template size_t cpp_set_size<T>(const void*);
 CPPSETSIZEINST(Value)
@@ -63,9 +65,25 @@ CPPSETSIZEINST(unsigned int)
 CPPSETSIZEINST(SCPBallot)
 CPPSETSIZEINST(PublicKey)
 
+template<>
+void cpp_set_insert<SCPBallot>(void* setptr, void* key)
+{
+    // todo
+    // ((std::set<T>*)setptr)->insert(*(T*)key);
+}
+
+template<>
+void cpp_set_insert<PublicKey>(void* setptr, void* key)
+{
+    // todo
+    // ((std::set<T>*)setptr)->insert(*(T*)key);
+}
+
 #define CPPSETINSERTINST(T) template void cpp_set_insert<T>(void*, void*);
 CPPSETINSERTINST(Value)
 CPPSETINSERTINST(unsigned int)
+CPPSETINSERTINST(SCPBallot)
+CPPSETINSERTINST(PublicKey)
 
 void callCPPDelegate (void* cb)
 {

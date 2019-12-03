@@ -383,13 +383,13 @@ SCPEnvelope makeNominate (SecretKey secretKey,
     nom.quorumSetHash = qSetHash;
     foreach (const ref ubyte[] v; votes)
     {
-        auto vec = v.toVec();
+        Value vec = cast(Value)v.toVec();
         nom.votes.push_back(vec);
     }
 
     foreach (const ref ubyte[] a; accepted)
     {
-        auto vec = a.toVec();
+        Value vec = cast(Value)a.toVec();
         nom.accepted.push_back(vec);
     }
 

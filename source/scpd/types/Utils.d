@@ -53,7 +53,13 @@ public SCPQuorumSet dup (ref const(SCPQuorumSet) orig)
 //extern(C++, `stellar`):
 extern(C++):
 
-public void push_back(T, VectorT) (ref VectorT this_, ref T value) @safe pure nothrow @nogc;
+template push_back(T, VectorT)
+{
+    //pragma(msg, T.stringof ~ " and " ~ VectorT.stringof);
+    public void push_back(ref VectorT this_, ref T value) @safe pure nothrow @nogc;
+}
+
+//public void push_back(T, VectorT) (ref VectorT this_, ref T value) @safe pure nothrow @nogc;
 public VectorT duplicate(VectorT)(ref const VectorT this_) @safe pure nothrow @nogc;
 public opaque_vec!() XDRToOpaque (const ref xvector!ubyte arg);
 public opaque_vec!() XDRToOpaque (const ref SCPQuorumSet arg);

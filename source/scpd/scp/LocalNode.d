@@ -91,8 +91,8 @@ extern(C++, class) public struct LocalNode
     // computes the distance to the set of v-blocking sets given
     // a set of nodes that agree (but can fail)
     // excluded, if set will be skipped altogether
-    static vector!NodeID findClosestVBlocking(const ref SCPQuorumSet qset,
-        const ref set!NodeID nodes, const(NodeID)* excluded);
+    static vector!NodeID findClosestVBlockingD(ref SCPQuorumSet qset,
+        void* nodes, NodeID* excluded);
 
     static vector!NodeID findClosestVBlocking (
         const ref SCPQuorumSet qset, const ref map!(NodeID, SCPEnvelope) _map,

@@ -514,7 +514,9 @@ unittest
     auto check = (ref const(SCPQuorumSet) qSetCheck, ref const(set!NodeID) s,
                   int expected)
     {
-        auto r = LocalNode.findClosestVBlocking(qSetCheck, s, null);
+        auto set_check = cast()qSetCheck;
+        auto nodes = cast()s;
+        auto r = LocalNode.findClosestVBlockingD(set_check, &nodes, null);
         assert(expected == r.length());
     };
 

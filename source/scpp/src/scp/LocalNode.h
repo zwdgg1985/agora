@@ -87,6 +87,12 @@ class LocalNode
     findClosestVBlocking(SCPQuorumSet const& qset,
                          std::set<NodeID> const& nodes, NodeID const* excluded);
 
+    // avoids using std::set due to linking issues (std::_1::set instead of std::set)
+    static std::vector<NodeID>
+    findClosestVBlockingD(SCPQuorumSet & qset,
+                                    void* nodes,
+                                    NodeID * excluded);
+
     static std::vector<NodeID> findClosestVBlocking(
         SCPQuorumSet const& qset, std::map<NodeID, SCPEnvelope> const& map,
         std::function<bool(SCPStatement const&)> const& filter =

@@ -254,6 +254,7 @@ extern(C++, (StdNS!())) struct vector (T, Alloc = allocator!T)
         }
 
         alias opDollar = length;
+        alias size = length;
 
         public bool empty ()
         {

@@ -80,6 +80,9 @@ extern(C++) public shared_ptr!SCPQuorumSet makeSharedSCPQuorumSet (
 /// std::set.empty() support
 nothrow pure @nogc extern(C++) private bool cpp_set_empty(T)(const(void)* set);
 
+/// std::set.size() support
+nothrow pure @nogc extern(C++) private size_t cpp_set_size(T)(const(void)* set);
+
 /// std::set.insert() support
 nothrow pure @nogc extern(C++) private void cpp_set_insert(T)(void* set,
     void* key);
@@ -103,9 +106,10 @@ extern(C++, `std`) {
     {
         void*[3] ptr;
 
-        this (Key key)
+        extern(D) this (Key[] keys...)
         {
-            this.insert(key);
+            foreach (key; keys)
+                this.insert(key);
         }
 
         /// Foreach support
@@ -127,10 +131,21 @@ extern(C++, `std`) {
             return cpp_set_empty!Key(cast(const void*)&this);
         }
 
+        /// Returns: the size of the set
+        extern(D) size_t size () const nothrow pure @nogc
+        {
+            return cpp_set_size!Key(cast(const void*)&this);
+        }
+
         /// Returns: true if the set is empty
         extern(D) void insert (Key key) const nothrow pure @nogc
         {
             return cpp_set_insert!Key(cast(void*)&this, cast(void*)&key);
+        }
+
+        public void clear ()
+        {
+            this.ptr[] = null;
         }
     }
 
@@ -204,6 +219,12 @@ extern(C++, (StdNS!())) struct vector (T, Alloc = allocator!T)
 
     extern(D)
     {
+        public this (T elem)
+        {
+            import scpd.types.Utils;
+            push_back(this, elem);
+        }
+
         /// TODO: Separate from `vector` definition
         private static struct ConstIterator
         {

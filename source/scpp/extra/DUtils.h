@@ -31,6 +31,12 @@ bool cpp_set_empty(const void* setptr)
 }
 
 template<typename T>
+size_t cpp_set_size(const void* setptr)
+{
+    return ((const std::set<T>*)setptr)->size();
+}
+
+template<typename T>
 void cpp_set_insert(void* setptr, void* key)
 {
     ((std::set<T>*)setptr)->insert(*(T*)key);

@@ -88,8 +88,8 @@ extern(C++) class TestSCP : SCPDriver
     SCP* mSCP;
     set!Value mExpectedCandidates;
     Value mCompositeValue;
-    uint64_t delegate(ref const(NodeID)) mPriorityLookup;
-    uint64_t delegate(ref const(Value)) mHashValueCalculator;
+    extern(D) uint64_t delegate(ref const(NodeID)) mPriorityLookup;
+    extern(D) uint64_t delegate(ref const(Value)) mHashValueCalculator;
     public SCPQuorumSetPtr[StellarHash] mQuorumSets;
     vector!SCPEnvelope mEnvs;
     Value[uint64_t] mExternalizedValues;
@@ -98,7 +98,7 @@ extern(C++) class TestSCP : SCPDriver
     milliseconds mCurrentTimerOffset;
 
 
-    public this (NodeID nodeID, ref const(SCPQuorumSet) qSetLocal,
+    extern(D) public this (NodeID nodeID, ref const(SCPQuorumSet) qSetLocal,
         bool isValidator = true)
     {
         mSCP = createSCP(this, nodeID, isValidator, qSetLocal);

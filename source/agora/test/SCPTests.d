@@ -520,19 +520,12 @@ unittest
         auto set_check = cast()qSetCheck;
         auto nodes = cast()s;
 
-        writefln("Set nodes: %s", nodes);
-        int x;
-        assert(x);
-
         auto r = LocalNode.findClosestVBlockingD(set_check, &nodes, null);
         assert(expected == r.length());
     };
 
     set!NodeID good = set!NodeID.make();
-    writefln("good nodes: %s", good);
-    writefln("v0NodeID: %s", v0NodeID);
     good.insert(v0NodeID);
-    writefln("good nodes: %s", good);
 
     // already v-blocking
     check(qSet, good, 0);

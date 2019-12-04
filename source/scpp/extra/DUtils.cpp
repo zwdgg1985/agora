@@ -4,10 +4,18 @@
 #include "DUtils.h"
 #include "xdrpp/marshal.h"
 #include "xdr/Stellar-SCP.h"
+#include "util/XDROperators.h"
 #include <functional>
 
 using namespace xdr;
 using namespace stellar;
+
+template<typename T>
+void cpp_set_insert(void* setptr, void* key)
+{
+    T the_key = *(T*)key;
+    ((std::set<T>*)setptr)->insert(the_key);
+}
 
 std::set<unsigned int>* makeTestSet()
 {
@@ -42,18 +50,18 @@ opaque_vec<> XDRToOpaque(const stellar::SCPStatement& param)
 PUSHBACKINST1(unsigned char)
 PUSHBACKINST1(xvector<unsigned char>)
 PUSHBACKINST1(SCPEnvelope)
-PUSHBACKINST1(PublicKey)
+PUSHBACKINST1(NodeID)
 PUSHBACKINST1(SCPQuorumSet)
 
 PUSHBACKINST2(const SCPEnvelope, xvector<SCPEnvelope>)
 PUSHBACKINST2(const SCPBallot, xvector<SCPBallot>)
 PUSHBACKINST2(const SCPEnvelope, std::vector<SCPEnvelope>)
 PUSHBACKINST2(const SCPBallot, std::vector<SCPBallot>)
-PUSHBACKINST2(const PublicKey, xvector<PublicKey>)
+PUSHBACKINST2(const NodeID, xvector<NodeID>)
 PUSHBACKINST3(xvector<unsigned char>, std::vector)
 PUSHBACKINST3(unsigned char, std::vector)
 
-PUSHBACKINST3(PublicKey, std::vector)
+PUSHBACKINST3(NodeID, std::vector)
 PUSHBACKINST3(SCPEnvelope, std::vector)
 PUSHBACKINST3(SCPBallot, std::vector)
 PUSHBACKINST3(SCPQuorumSet, std::vector)
@@ -63,47 +71,32 @@ template opaque_vec<> duplicate<opaque_vec<>>(opaque_vec<> const&);
 #define CPPSETFOREACHINST(T) template int cpp_set_foreach<T>(void*, void*, void*);
 CPPSETFOREACHINST(Value)
 CPPSETFOREACHINST(SCPBallot)
-CPPSETFOREACHINST(PublicKey)
+CPPSETFOREACHINST(NodeID)
 CPPSETFOREACHINST(unsigned int)
 
 #define CPPSETEMPTYINST(T) template bool cpp_set_empty<T>(const void*);
 CPPSETEMPTYINST(Value)
 CPPSETEMPTYINST(unsigned int)
 CPPSETEMPTYINST(SCPBallot)
-CPPSETEMPTYINST(PublicKey)
+CPPSETEMPTYINST(NodeID)
 
 #define CPPSETSIZEINST(T) template size_t cpp_set_size<T>(const void*);
 CPPSETSIZEINST(Value)
 CPPSETSIZEINST(unsigned int)
 CPPSETSIZEINST(SCPBallot)
-CPPSETSIZEINST(PublicKey)
+CPPSETSIZEINST(NodeID)
 
 #define CPPSETMAKETESTINST(T) template void* makeStdSet<T>();
 CPPSETMAKETESTINST(Value)
 CPPSETMAKETESTINST(unsigned int)
 CPPSETMAKETESTINST(SCPBallot)
-CPPSETMAKETESTINST(PublicKey)
-
-template<>
-void cpp_set_insert<SCPBallot>(void* setptr, void* key)
-{
-    // todo: we must insert stuff lol!
-
-    // ((std::set<T>*)setptr)->insert(*(T*)key);
-}
-
-template<>
-void cpp_set_insert<PublicKey>(void* setptr, void* key)
-{
-    // todo
-    // ((std::set<T>*)setptr)->insert(*(T*)key);
-}
+CPPSETMAKETESTINST(NodeID)
 
 #define CPPSETINSERTINST(T) template void cpp_set_insert<T>(void*, void*);
 CPPSETINSERTINST(Value)
 CPPSETINSERTINST(unsigned int)
 CPPSETINSERTINST(SCPBallot)
-CPPSETINSERTINST(PublicKey)
+CPPSETINSERTINST(NodeID)
 
 void callCPPDelegate (void* cb)
 {

@@ -107,6 +107,7 @@ extern(C++, `std`) {
     /// Fake bindings for std::set
     public struct set (Key)
     {
+        import std.format;
         void*[3] ptr;
 
         extern(D) this (Key[] keys...)
@@ -117,6 +118,28 @@ extern(C++, `std`) {
             foreach (key; keys)
                 this.insert(key);
         }
+
+        static set make()
+        {
+            set result = void;
+            auto set = cast(set*)makeStdSet!Key();
+            result.ptr = set.ptr;
+            return result;
+        }
+
+        @disable this();
+
+        //string toString ()
+        //{
+        //    string res;
+        //    res ~= "set!%s(".format(Key.stringof);
+        //    foreach (elem; this)
+        //    {
+        //        res ~= format("%s, ", elem);
+        //    }
+        //    res ~= ")";
+        //    return res;
+        //}
 
         /// Foreach support
         extern(D) public int opApply (scope int delegate(ref const(Key)) dg) const

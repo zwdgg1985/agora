@@ -87,7 +87,8 @@ CPPSETMAKETESTINST(PublicKey)
 template<>
 void cpp_set_insert<SCPBallot>(void* setptr, void* key)
 {
-    // todo
+    // todo: we must insert stuff lol!
+
     // ((std::set<T>*)setptr)->insert(*(T*)key);
 }
 

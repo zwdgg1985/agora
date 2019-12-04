@@ -354,7 +354,7 @@ unittest
         int tot = 0;
         for (int g = 0; g < totalIter; g++)
         {
-            writefln("Iteration %s", g);
+            //writefln("Iteration %s", g);
             Value v = g.toValue();
             nom0.setPreviousValue(v);
             nom1.setPreviousValue(v);

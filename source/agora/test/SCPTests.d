@@ -407,7 +407,9 @@ void verifyPrepare (SCPEnvelope actual, SecretKey secretKey,
 {
     auto exp = makePrepare(secretKey, publicKey, qSetHash, slotIndex, ballot,
         prepared, nC, nH, preparedPrime);
-    assert(exp.statement == actual.statement);
+    assert(exp.statement == actual.statement,
+        format("\nActual: \n%s\n\nExpected: \n%s\n", actual.statement,
+            exp.statement));
 }
 
 void verifyConfirm (SCPEnvelope actual,

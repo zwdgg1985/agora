@@ -111,7 +111,19 @@ struct xvector(T, uint32_t N = XDR_MAX_LEN)
 
 // xstring(uint32_t N = XDR_MAX_LEN) => std::string
 // class pointer(T) : std::unique_ptr(T);
-alias pointer(T) = T*;
+struct pointer(T)
+{
+    T* val;
+    alias val this;
+
+    /// SCP core uses compare by value for pointers embedded in e.g. SCPStatement
+    public bool opEquals (const ref typeof(this) rhs)
+        const pure nothrow @nogc @safe
+    {
+        return (this.val is null && rhs.val is null) ||
+            (this.val !is null && rhs.val !is null && *this.val == *this.val);
+    }
+}
 
 // Probably only useful in C++ code:
 // template<typename T, typename F, F T::*Ptr> struct field_ptr {

@@ -102,6 +102,34 @@ struct SCPStatement {
             SCPNomination nominate_;
         }
 
+        public bool opEquals (const ref typeof(this) rhs)
+            @trusted const @nogc pure nothrow
+        {
+            import std.stdio;
+            scope (failure) assert(0);
+
+            if (this.type_ != rhs.type_)
+                return false;
+
+            switch (this.type_)
+            {
+                case SCPStatementType.SCP_ST_PREPARE:
+                    return this.prepare_ == rhs.prepare_;
+
+                case SCPStatementType.SCP_ST_CONFIRM:
+                    return this.confirm_ == rhs.confirm_;
+
+                case SCPStatementType.SCP_ST_EXTERNALIZE:
+                    return this.externalize_ == rhs.externalize_;
+
+                case SCPStatementType.SCP_ST_NOMINATE:
+                    return this.nominate_ == rhs.nominate_;
+
+                default:
+                    assert(0);
+            }
+        }
+
         /// Support (de)serialization from Vibe.d
         extern(D) string toString () const @trusted
         {

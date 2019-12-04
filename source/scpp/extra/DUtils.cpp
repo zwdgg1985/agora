@@ -15,6 +15,13 @@ std::set<unsigned int>* makeTestSet()
     return set;
 }
 
+template <typename T>
+void* makeStdSet()
+{
+    std::set<T>* set = new std::set<T>();
+    return set;
+}
+
 opaque_vec<> XDRToOpaque(const xdr::xvector<unsigned char>& param)
 {
     return xdr::xdr_to_opaque(param);
@@ -70,6 +77,12 @@ CPPSETSIZEINST(Value)
 CPPSETSIZEINST(unsigned int)
 CPPSETSIZEINST(SCPBallot)
 CPPSETSIZEINST(PublicKey)
+
+#define CPPSETMAKETESTINST(T) template void* makeStdSet<T>();
+CPPSETMAKETESTINST(Value)
+CPPSETMAKETESTINST(unsigned int)
+CPPSETMAKETESTINST(SCPBallot)
+CPPSETMAKETESTINST(PublicKey)
 
 template<>
 void cpp_set_insert<SCPBallot>(void* setptr, void* key)

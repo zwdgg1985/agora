@@ -80,6 +80,9 @@ extern(C++) public shared_ptr!SCPQuorumSet makeSharedSCPQuorumSet (
 /// std::set.empty() support
 nothrow pure @nogc extern(C++) private bool cpp_set_empty(T)(const(void)* set);
 
+/// std::set default ctor
+nothrow pure @nogc extern(C++) void* makeStdSet(T)();
+
 /// std::set.size() support
 nothrow pure @nogc extern(C++) private size_t cpp_set_size(T)(const(void)* set);
 
@@ -108,6 +111,9 @@ extern(C++, `std`) {
 
         extern(D) this (Key[] keys...)
         {
+            auto set = cast(set*)makeStdSet!Key();
+            this.ptr = set.ptr;
+
             foreach (key; keys)
                 this.insert(key);
         }

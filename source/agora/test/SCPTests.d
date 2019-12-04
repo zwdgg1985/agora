@@ -208,9 +208,7 @@ extern(C++) class TestSCP : SCPDriver
     {
         mTimers[timerID] =
             TimerData(milliseconds(mCurrentTimerOffset +
-                          // todo: use proper zero, wrap milliseconds::zero maybe
-                          //(cb ? timeout : milliseconds.zero()),
-                          (cb !is null ? timeout : milliseconds.init)),
+                          (cb !is null ? timeout : getZeroMilliseconds)),
                       cb);
     }
 
@@ -222,9 +220,10 @@ extern(C++) class TestSCP : SCPDriver
     // pretends the time moved forward
     public milliseconds bumpTimerOffset()
     {
-        // increase by more than the maximum timeout
-        // todo: fix this
-        //mCurrentTimerOffset += std.chrono.hours(5);
+        import std.stdio;
+        writefln("Bef time: %s", mCurrentTimerOffset);
+        bump5Hours(&mCurrentTimerOffset);
+        writefln("Aft time: %s", mCurrentTimerOffset);
         return mCurrentTimerOffset;
     }
 
@@ -327,9 +326,6 @@ SCPEnvelope makeConfirm (SecretKey secretKey,
     SCPBallot b, uint32_t nC, uint32_t nH)
 {
     SCPStatement st;
-    // todo: this was a function call in C++ which destroyed an existing
-    // object type in the pledge. However, we don't need to destroy anything
-    // because we never change the type after it's set.
     st.pledges.type_ = SCPStatementType.SCP_ST_CONFIRM;
     auto con = &st.pledges.confirm_;
     con.ballot = cast()b;
@@ -846,7 +842,7 @@ unittest
         Big2.counter++;
 
         assert(scp.bumpState(0, aValue));
-        assert(scp.mEnvs.size() == 1);
+        assert(scp.mEnvs.size() == 1, format("Size is: %s. Data is: %s", scp.mEnvs.size(), scp.mEnvs));
         assert(!scp.hasBallotTimer());
 
         //SECTION("prepared A1")

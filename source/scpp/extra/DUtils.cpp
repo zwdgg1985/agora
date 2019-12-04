@@ -17,6 +17,17 @@ void cpp_set_insert(void* setptr, void* key)
     ((std::set<T>*)setptr)->insert(the_key);
 }
 
+auto getZeroMilliseconds()
+{
+    return std::chrono::milliseconds::zero;
+}
+
+void bump5Hours(void* ms)
+{
+    auto millis = (std::chrono::milliseconds*)ms;
+    (*millis) += std::chrono::hours(5);
+}
+
 std::set<unsigned int>* makeTestSet()
 {
     std::set<unsigned int>* set = new std::set<unsigned int>({1, 2, 3, 4, 5});

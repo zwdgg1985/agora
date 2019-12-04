@@ -217,6 +217,10 @@ extern(C++, `std`) {
     static assert(CPPDelegate!SCPCallback.sizeof == 64);
 }
 
+extern (C++) milliseconds getZeroMilliseconds() nothrow;
+
+extern (C++) void bump5Hours(void*) nothrow;
+
 /// Type of SCP function callback called by a timer
 public alias SCPCallback = extern(C++) void function();
 

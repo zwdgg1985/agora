@@ -107,6 +107,8 @@ extern(C++, `std`) {
     /// Fake bindings for std::set
     public struct set (Key)
     {
+        static assert(set.sizeof == 24);
+
         import std.format;
         void*[3] ptr;
 

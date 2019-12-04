@@ -294,7 +294,7 @@ LocalNode::findClosestVBlockingD(SCPQuorumSet & qset,
                                 void* nodes,
                                 NodeID * excluded)
 {
-    auto nodes2 = *(std::set<NodeID> *)nodes;
+    std::set<NodeID>& nodes2 = *(std::set<NodeID> *)nodes;
     return findClosestVBlocking((SCPQuorumSet const&)qset,
         nodes2, (NodeID const*)excluded);
 }

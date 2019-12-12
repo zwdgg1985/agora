@@ -56,7 +56,9 @@ unittest
     Thread.sleep(100.msecs);
     nodes[1 .. $].each!(node => node.clearFilter());
 
-    nodes.all!(node => node.getBlockHeight() == 1).retryFor(2.seconds);
+    Thread.sleep(200.msecs);
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
+    nodes.all!(node => node.getBlockHeight() == 1).retryFor(4.seconds);
 }
 
 /// test request timeouts
@@ -80,16 +82,21 @@ unittest
     // block periodic getBlocksFrom
     node_1.filter!(node_1.getBlocksFrom);
 
+    auto txes = makeChainedTransactions(getGenesisKeyPair(), null, 1);
+
     // reject inbound requests
     const DropRequests = true;
     nodes[1 .. $].each!(node => node.sleep(100.msecs, DropRequests));
-
-    auto txes = makeChainedTransactions(getGenesisKeyPair(), null, 1);
 
     // node 1 will keep trying to send transactions up to
     // max_retries * (retry_delay + timeout) seconds (see Base.d),
     // 20 * (100 + 100) = 4 seconds of retry time
     txes.each!(tx => node_1.putTransaction(tx));
 
+    Thread.sleep(200.msecs);
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
+
+    Thread.sleep(200.msecs);
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
     nodes.all!(node => node.getBlockHeight() == 1).retryFor(4.seconds);
 }

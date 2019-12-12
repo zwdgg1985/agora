@@ -58,6 +58,7 @@ unittest
     ));
     // When a block is created, the transaction is deleted from the transaction pool.
     node_1.putTransaction(txs[$-1]);
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
     nodes.enumerate.each!((idx, node) =>
         retryFor(node.getBlockHeight() == 1,
         2.seconds,

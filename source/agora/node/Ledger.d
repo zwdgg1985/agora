@@ -18,6 +18,7 @@ import agora.common.Config;
 import agora.common.crypto.Key;
 import agora.common.Hash;
 import agora.common.TransactionPool;
+import agora.common.Task;
 import agora.common.Types;
 import agora.consensus.data.Block;
 import agora.consensus.data.Transaction;
@@ -28,6 +29,8 @@ import agora.node.API;
 import agora.node.BlockStorage;
 import agora.utils.Log;
 import agora.utils.PrettyPrinter;
+
+import core.time;
 
 import std.algorithm;
 import std.range;
@@ -52,6 +55,9 @@ public class Ledger
     /// Node config
     private NodeConfig node_config;
 
+    /// temporary
+    private bool make_blocks_immediately;
+
     /***************************************************************************
 
         Constructor
@@ -66,12 +72,14 @@ public class Ledger
     public this (TransactionPool pool,
         UTXOSet utxo_set,
         IBlockStorage storage,
-        NodeConfig node_config)
+        NodeConfig node_config,
+        bool make_blocks_immediately = true)
     {
         this.pool = pool;
         this.utxo_set = utxo_set;
         this.storage = storage;
         this.node_config = node_config;
+        this.make_blocks_immediately = make_blocks_immediately;
         if (!this.storage.load())
             assert(0);
 
@@ -121,6 +129,20 @@ public class Ledger
         return true;
     }
 
+    /// Start making blocks in a background task which runs every 10 minutes
+    public void startMakingBlocks (TaskManager taskman)
+    {
+        taskman.runTask(
+        ()
+        {
+            while (1)
+            {
+                taskman.wait(10.minutes);
+                this.tryCreateBlock();
+            }
+        });
+    }
+
     /***************************************************************************
 
         Called when a new transaction is received.
@@ -152,7 +174,7 @@ public class Ledger
             return false;
         }
 
-        if (this.pool.length >= Block.TxsInBlock)
+        if (this.make_blocks_immediately)
             this.tryCreateBlock();
 
         return true;
@@ -215,6 +237,9 @@ public class Ledger
 
     private void tryCreateBlock () @safe
     {
+        if (this.pool.length < Block.TxsInBlock)
+            return;
+
         Hash[] hashes;
         Transaction[] txs;
         ulong expect_height = this.getBlockHeight() + 1;

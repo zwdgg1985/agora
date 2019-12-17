@@ -419,7 +419,7 @@ unittest
 *******************************************************************************/
 
 public Block makeNewBlock (Transactions)(const ref Block prev_block,
-    Transactions txs) @safe
+    Transactions txs) @safe nothrow
     if (isInputRange!Transactions)
 {
     Block block;

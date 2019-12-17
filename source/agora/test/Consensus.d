@@ -45,5 +45,6 @@ unittest
 
     auto txs = makeChainedTransactions(getGenesisKeyPair(), null, 1);
     txs.each!(tx => node_1.putTransaction(tx));
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
     containSameBlocks(nodes, 1).retryFor(5.seconds);
 }

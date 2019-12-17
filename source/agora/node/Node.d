@@ -105,7 +105,8 @@ public class Node : API
         this.storage = this.getBlockStorage(config.node.data_dir);
         this.pool = this.getPool(config.node.data_dir);
         this.utxo_set = this.getUtxoSet(config.node.data_dir);
-        this.ledger = new Ledger(this.pool, this.utxo_set, this.storage, config.node);
+        this.ledger = new Ledger(this.pool, this.utxo_set, this.storage,
+            config.node, false);
         this.gossip = new GossipProtocol(this.network, this.ledger);
         this.exception = new RestException(
             400, Json("The query was incorrect"), string.init, int.init);
@@ -154,6 +155,7 @@ public class Node : API
 
             this.nominator = new Nominator(this.config.node.key_pair,
                 this.ledger, this.taskman, quorum_peers, quorum_set);
+            this.ledger.startMakingBlocks(this.taskman);
         }
     }
 

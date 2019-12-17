@@ -55,6 +55,8 @@ unittest
         // send it to one node
         txs.each!(tx => node_1.putTransaction(tx));
 
+        nodes.each!(node => node.ctrl.offsetTime(10.minutes));
+
         nodes.enumerate.each!((idx, node) =>
             retryFor(node.getBlockHeight() == block_idx + 1,
                 4.seconds,
@@ -89,6 +91,62 @@ unittest
 }
 
 /// test catch-up phase after initial booting (periodic catch-up)
+// test disabled: cannot add blocks if start() wasn't called,
+// we need the timer (and consensus)
+version (none) unittest
+{
+    import std.algorithm;
+    import std.conv;
+    import std.format;
+    import std.range;
+    import core.time;
+
+    const NodeCount = 4;
+    auto network = makeTestNetwork(NetworkTopology.Simple, NodeCount);
+
+    auto nodes = network.apis.values;
+    auto node_1 = nodes[0];
+
+    Transaction[] last_txs;
+    foreach (block_idx; 0 .. 10)  // create 10 blocks
+    {
+        // create enough tx's for a single block
+        auto txs = makeChainedTransactions(getGenesisKeyPair(), last_txs, 1);
+
+        // send it to one node
+        txs.each!(tx => node_1.putTransaction(tx));
+
+        last_txs = txs;
+    }
+
+    // wait for ten 10-minute segments
+    foreach (block_idx; 0 .. 10)
+    {
+        nodes.each!(node => node.ctrl.offsetTime(10.minutes));
+
+        retryFor(node_1.getBlockHeight() == block_idx + 1,
+            1.seconds,
+            format("Node 1 has block height %s. Expected: %s",
+                node_1.getBlockHeight().to!string, block_idx + 1));
+    }
+
+    retryFor(node_1.getBlockHeight() == 10, 1.seconds);
+
+    foreach (empty_node; nodes[1 .. $])
+    {
+        assert(empty_node.getBlockHeight() == 0);
+    }
+
+    // now start the network, let other nodes catch-up the latest blocks
+    network.start();
+    scope(exit) network.shutdown();
+    scope(failure) network.printLogs();
+    assert(network.getDiscoveredNodes().length == NodeCount);
+    containSameBlocks(nodes, 10).retryFor(8.seconds);
+}
+
+
+/// test catch-up phase after initial booting (periodic catch-up)
 unittest
 {
     import std.algorithm;
@@ -109,8 +167,14 @@ unittest
     // ignore transaction propagation and periodically retrieve blocks via getBlocksFrom
     nodes[1 .. $].each!(node => node.filter!(node.putTransaction));
 
-    auto txs = makeChainedTransactions(getGenesisKeyPair(), null, 2);
+    auto txs = makeChainedTransactions(getGenesisKeyPair(), null, 1);
     txs.each!(tx => node_1.putTransaction(tx));
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
+    containSameBlocks(nodes, 1).retryFor(8.seconds);
+
+    txs = makeChainedTransactions(getGenesisKeyPair(), txs, 1);
+    txs.each!(tx => node_1.putTransaction(tx));
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
     containSameBlocks(nodes, 2).retryFor(8.seconds);
 }
 
@@ -133,6 +197,8 @@ unittest
     auto gen_key_pair = getGenesisKeyPair();
     auto txs = makeChainedTransactions(gen_key_pair, null, 1);
     txs.each!(tx => node_1.putTransaction(tx));
+
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
 
     Hash[] hashes;
     hashes.reserve(txs.length);
@@ -210,10 +276,12 @@ unittest
 
     auto txs = makeChainedTransactions(getGenesisKeyPair(), null, 1);
     txs.each!(tx => node_1.putTransaction(tx));
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
     containSameBlocks(nodes, 1).retryFor(3.seconds);
 
     txs = makeChainedTransactions(getGenesisKeyPair(), txs, 1);
     txs.each!(tx => node_1.putTransaction(tx));
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
     containSameBlocks(nodes, 2).retryFor(3.seconds);
 
     txs = makeChainedTransactions(getGenesisKeyPair(), txs, 1);
@@ -241,10 +309,12 @@ unittest
         }, 0));
 
     txs.each!(tx => node_1.putTransaction(tx));
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
 
     Thread.sleep(2.seconds);  // wait for propagation
     containSameBlocks(nodes, 2).retryFor(3.seconds);  // no new block yet (1 rejected tx)
 
     node_1.putTransaction(backup_tx);
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
     containSameBlocks(nodes, 3).retryFor(3.seconds);  // new block finally created
 }

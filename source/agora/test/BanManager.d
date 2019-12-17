@@ -66,20 +66,33 @@ version (none) unittest
         return txes;
     }
 
+
     genBlockTransactions(1).each!(tx => node_1.putTransaction(tx));
+    // need to wait for propagation to finish before offsetting time
+    Thread.sleep(200.msecs);
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
 
     // wait until the transactions were gossiped
-    containSameBlocks(nodes, 1).retryFor(3.seconds);
+    retryFor(node_1.getBlockHeight() == 1, 4.seconds);
 
-    node_1.filter!(node_1.getBlocksFrom);  // node 2 can't retrieve blocks
-    node_2.filter!(node_2.putTransaction); // node 1 can't gossip transactions
+    node_1.filter!(node_1.getBlocksFrom);  // node 1 won't send block
+    node_2.filter!(node_2.putTransaction); // node 2 won't receive txs
 
     // leftover txs which node 2 rejected due to filter
     Transaction[] left_txs;
 
-    auto new_tx = genBlockTransactions(4);
-    left_txs ~= new_tx;
-    new_tx.each!(tx => node_1.putTransaction(tx));
+    foreach (idx; 0 .. 4)
+    {
+        auto new_tx = genBlockTransactions(1);
+        left_txs ~= new_tx;
+        new_tx.each!(tx => node_1.putTransaction(tx));
+
+        Thread.sleep(200.msecs);
+        nodes.each!(node => node.ctrl.offsetTime(10.minutes));
+
+        // need to wait for the block to be generated
+        retryFor(node_1.getBlockHeight() == 1 + idx + 1, 4.seconds);
+    }
 
     // wait for node 2 to be banned and all putTransaction requests to time-out
     Thread.sleep(2.seconds);
@@ -89,18 +102,30 @@ version (none) unittest
 
     // clear putTransaction filter
     node_2.clearFilter();
-    left_txs.each!(tx => node_2.putTransaction(tx));  // add leftover txs
-    retryFor(node_1.getBlockHeight() == 5, 1.seconds);
-    retryFor(node_2.getBlockHeight() == 5, 1.seconds);
+
+    foreach (idx; 0 .. 4)
+    {
+        auto txs = left_txs[0 .. 8];
+        left_txs = left_txs[8 .. $];
+        txs.each!(tx => node_2.putTransaction(tx));  // add leftover txs
+        Thread.sleep(200.msecs);  // wait for propagation
+        node_2.ctrl.offsetTime(10.minutes);
+
+        retryFor(node_2.getBlockHeight() == 1 + idx + 1, 1.seconds);
+    }
 
     // node 2 should be banned by this point
-    new_tx = genBlockTransactions(1);
+    auto new_tx = genBlockTransactions(1);
     left_txs ~= new_tx;
     new_tx.each!(tx => node_1.putTransaction(tx));
+    Thread.sleep(200.msecs);  // wait for propagation
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
     retryFor(node_1.getBlockHeight() == 6, 1.seconds);
     retryFor(node_2.getBlockHeight() == 5, 1.seconds);  // node was banned
 
     left_txs.each!(tx => node_2.putTransaction(tx));  // add leftover txs
+    Thread.sleep(200.msecs);  // wait for propagation
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
     retryFor(node_1.getBlockHeight() == 6, 1.seconds);
     retryFor(node_2.getBlockHeight() == 6, 1.seconds);
 
@@ -109,6 +134,8 @@ version (none) unittest
     new_tx = genBlockTransactions(1);
     left_txs ~= new_tx;
     new_tx.each!(tx => node_1.putTransaction(tx));
+    Thread.sleep(200.msecs);  // wait for propagation
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
     retryFor(node_1.getBlockHeight() == 7, 1.seconds);
     retryFor(node_2.getBlockHeight() == 7, 1.seconds);  // node was un-banned
 }

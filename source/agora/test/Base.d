@@ -207,7 +207,7 @@ public class FakeClockBanManager : BanManager
 
 public class TestAPIManager
 {
-    static import std.concurrency;
+    static import geod24.concurrency;
     import geod24.LocalRest;
     import core.time;
     import core.stdc.time;
@@ -351,7 +351,7 @@ public class TestAPIManager
     not do IO (or appear not to).
 
     In the current design, all nodes should be instantiated upfront,
-    registered via `std.concurrency.register`, and located by `getClient`.
+    registered via `geod24.concurrency.register`, and located by `getClient`.
 
 *******************************************************************************/
 
@@ -359,8 +359,8 @@ public class TestNetworkManager : NetworkManager
 {
     import geod24.LocalRest;
 
-    /// Workaround compiler bug that triggers in `std.concurrency`
-    public __gshared std.concurrency.Tid[string] tbn;
+    /// Workaround compiler bug that triggers in `geod24.concurrency`
+    public __gshared geod24.concurrency.Tid[string] tbn;
 
     /// Constructor
     public this (NodeConfig config, BanManager.Config ban_conf,
@@ -544,8 +544,8 @@ public APIManager makeTestNetwork (APIManager : TestAPIManager = TestAPIManager)
 
     // We know we're in the main thread
     // Vibe.d messes with the scheduler - reset it
-    static import std.concurrency;
-    std.concurrency.scheduler = null;
+    static import geod24.concurrency;
+    geod24.concurrency.scheduler = null;
 
     assert(nodes >= 2, "Creating a network require at least 2 nodes");
 

@@ -20,6 +20,8 @@ import agora.consensus.Genesis;
 import agora.node.API;
 import agora.test.Base;
 
+import core.time;
+
 /// test behavior when getBlockHeight() call fails
 unittest
 {
@@ -46,6 +48,11 @@ unittest
 
     nodes[0].clearFilter();
     nodes[1].clearFilter();
+
+    nodes.all!(node => node.getBlockHeight() == 0)
+        .retryFor(2.seconds, "Nodes should have same block height");
+
+    nodes.each!(node => node.ctrl.offsetTime(10.minutes));
 
     nodes.all!(node => node.getBlockHeight() == 1)
         .retryFor(2.seconds, "Nodes should have same block height");
@@ -142,9 +149,28 @@ unittest
     node_bad.filter!(API.getBlocksFrom);
     node_test.filter!(API.putTransaction);
 
+    Transaction[] last_txs;
+    auto gen_key = getGenesisKeyPair();
+
     // make 10 good blocks
-    auto txes = makeChainedTransactions(getGenesisKeyPair(), null, 10);
-    txes.each!(tx => node_good.putTransaction(tx));
+    foreach (idx; 0 .. 10)
+    {
+        auto txs = makeChainedTransactions(gen_key, last_txs, 1);
+        last_txs = txs;
+        txs.each!(tx => node_good.putTransaction(tx));
+
+        // sanity check that the timer hasn't fired yet
+        (node_good.getBlockHeight() == idx).retryFor(2.seconds);
+
+        // time-travel to trigger block creation
+        nodes.each!(node => node.ctrl.offsetTime(10.minutes));
+
+        // at this point both the good node and bad node have same amount of blocks,
+        // but bad node pretends to have + 10
+        (node_good.getBlockHeight() == idx + 1).retryFor(2.seconds);
+        assert(node_bad.getBlockHeight() == 20);
+        assert(node_test.getBlockHeight() == 0);  // only genesis
+    }
 
     // at this point both the good node and bad node have same amount of blocks,
     // but bad node pretends to have + 10

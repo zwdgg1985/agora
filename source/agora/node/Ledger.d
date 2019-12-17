@@ -19,6 +19,7 @@ import agora.common.crypto.Key;
 import agora.common.Hash;
 import agora.common.Set;
 import agora.common.TransactionPool;
+import agora.common.Task;
 import agora.common.Types;
 import agora.consensus.data.Block;
 import agora.consensus.data.Transaction;
@@ -29,6 +30,8 @@ import agora.node.API;
 import agora.node.BlockStorage;
 import agora.utils.Log;
 import agora.utils.PrettyPrinter;
+
+import core.time;
 
 import std.algorithm;
 import std.range;
@@ -60,6 +63,9 @@ public class Ledger
     /// Node config
     private NodeConfig node_config;
 
+    /// temporary
+    private bool make_blocks_immediately;
+
     /***************************************************************************
 
         Constructor
@@ -74,12 +80,14 @@ public class Ledger
     public this (TransactionPool pool,
         UTXOSet utxo_set,
         IBlockStorage storage,
-        NodeConfig node_config)
+        NodeConfig node_config,
+        bool make_blocks_immediately = true)
     {
         this.pool = pool;
         this.utxo_set = utxo_set;
         this.storage = storage;
         this.node_config = node_config;
+        this.make_blocks_immediately = make_blocks_immediately;
         if (!this.storage.load())
             assert(0);
 
@@ -166,6 +174,20 @@ public class Ledger
         return true;
     }
 
+    /// Start making blocks in a background task which runs every 10 minutes
+    public void startMakingBlocks (TaskManager taskman)
+    {
+        taskman.runTask(
+        ()
+        {
+            while (1)
+            {
+                taskman.wait(10.minutes);
+                this.tryNominateTxSet();
+            }
+        });
+    }
+
     /***************************************************************************
 
         Called when a new transaction is received.
@@ -186,13 +208,18 @@ public class Ledger
 
     public bool acceptTransaction (Transaction tx) @safe
     {
-        if (!this.isValidTransaction(tx) || !this.pool.add(tx))
+        const expect_height = this.getBlockHeight() + 1;
+        auto reason = tx.isInvalidReason(this.utxo_set.getUTXOFinder(),
+            expect_height);
+
+        if (reason !is null || !this.pool.add(tx))
         {
-            log.info("Rejected tx: {}", tx);
+            log.info("Rejected tx. Reason: {}. Tx: {}",
+                reason !is null ? reason : "double-spend", tx);
             return false;
         }
 
-        if (this.pool.length >= Block.TxsInBlock)
+        if (this.make_blocks_immediately)
             this.tryNominateTxSet();
 
         return true;
@@ -255,6 +282,9 @@ public class Ledger
 
     private void tryNominateTxSet () @safe
     {
+        if (this.pool.length < Block.TxsInBlock)
+            return;
+
         Hash[] hashes;
         Set!Transaction txs;
         ulong expect_height = this.getBlockHeight() + 1;
@@ -281,28 +311,6 @@ public class Ledger
         // need it at this point (might later be necessary for chain upgrades)
         auto slot_idx = this.last_block.header.height + 1;
         this.nominateTxSet(slot_idx, Set!Transaction.init, txs);
-    }
-
-    /***************************************************************************
-
-        Check whether the transaction is valid and may be added to the pool.
-
-        A transaction is valid if it references a previous UTXO in the
-        blockchain. Note that double-spend transactions are not tracked here,
-        they are only tracked during the creation of a block.
-
-        Params:
-            transaction = the transaction to validate
-
-        Returns:
-            true if the transaction may be added to the pool
-
-    ***************************************************************************/
-
-    public bool isValidTransaction (const ref Transaction tx) nothrow @safe
-    {
-        const ulong expect_height = this.getBlockHeight() + 1;
-        return tx.isInvalidReason(this.utxo_set.getUTXOFinder(), expect_height) is null;
     }
 
     /***************************************************************************

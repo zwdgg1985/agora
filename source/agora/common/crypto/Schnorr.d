@@ -284,10 +284,6 @@ unittest
             // this validator did not reveal the preimage, cannot sign
             if (cast(ushort)idx !in block.preimages)
                 return false;
-
-            // this validator did not reveal the previous preimage
-            if (cast(ushort)idx !in prev_block.preimages)
-                return false;
         }
 
         // R2 = R1 + X (previous R1 + preimage)

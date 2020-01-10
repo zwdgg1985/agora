@@ -57,6 +57,9 @@ public struct BlockHeader
     /// Schnorr multisig of all validators which signed this block
     public Signature signature;
 
+    /// The revealed preimages for this block
+    public Hash[ushort] preimages;
+
     /// Enrolled validators
     public Enrollment[] enrollments;
 
@@ -97,6 +100,15 @@ public struct BlockHeader
         dg(this.merkle_root[]);
         serializePart(this.validators, dg);
         serializePart(this.signature, dg);
+
+        // todo: no need to serialize length, maybe
+        serializePart(this.preimages.length, dg);
+        foreach (idx, preimage; this.preimages)
+        {
+            serializePart(idx, dg);
+            serializePart(preimage, dg);
+        }
+
         serializePart(this.enrollments.length, dg);
         foreach (enrollment; this.enrollments)
             serializePart(enrollment, dg);
@@ -119,11 +131,30 @@ public struct BlockHeader
         deserializePart(this.validators, dg);
         deserializePart(this.signature, dg);
 
+        size_t length;
+        deserializePart(length, dg);
+
+        foreach (_; 0 .. length)
+        {
+            ushort idx;
+            deserializePart(idx, dg);
+
+            Hash preimage;
+            deserializePart(preimage, dg);
+            this.preimages[idx] = preimage;
+        }
+
         size_t enrollments_size;
         deserializePart(enrollments_size, dg);
         this.enrollments = uninitializedArray!(Enrollment[])(enrollments_size);
         foreach (ref val; this.enrollments)
             deserializePart(val, dg);
+    }
+
+    /// make the compiler shut the fuck up about const/immutable
+    public bool opEquals (inout(BlockHeader) rhs) @trusted nothrow inout
+    {
+        return (cast()rhs).tupleof == (cast()this).tupleof;
     }
 }
 

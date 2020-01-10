@@ -27,6 +27,146 @@ import agora.consensus.Genesis;
 import std.conv;
 /*******************************************************************************
 
+    Check the validation of the block header's signature
+
+    Params:
+        block = the block header to validate
+        prev_block = the previous block header
+        pub_keys = public keys of all validators, sorted alphabetically
+                   to enable bitmask index lookup
+
+    Return:
+        `null` if the block is valid, otherwise a string explaining the
+        reason it is invalid.
+
+*******************************************************************************/
+
+public string isInvalidSignatureReason (BlockHeader block,
+    BlockHeader prev_block, Point[] prev_pubs, Point[] pub_keys) nothrow @trusted
+{
+    scope (failure) assert(0);  // todo: fix BitArray throw/@system nonsense
+    import std.algorithm;
+    import agora.common.crypto.Schnorr : verify;
+
+    foreach (idx, preimage; block.preimages)
+    {
+        // missing preimage
+        if (idx !in prev_block.preimages)
+            return "Missing preimage in the previous block";
+
+        // preimage must be of the previous preimage
+        if (preimage.hashFull() != prev_block.preimages[idx])
+            return "Preimage does not hash to the previous preimage";
+    }
+
+    size_t num_signers;
+    foreach (idx, has_signed; block.validators)
+    {
+        if (!has_signed)
+            continue;
+
+        num_signers++;
+
+        // this validator did not reveal the preimage, cannot sign
+        if (cast(ushort)idx !in block.preimages)
+            return "Validator which signed has not revealed the preimage";
+    }
+
+    // todo: could have a rule: at least 50% + 1 must have signed the block
+    // in order for the signature to be considered valid
+    if (num_signers == 0)
+        return "Nobody signed this block";
+
+    /// Returns: The accumulated values
+    /// Note: be aware of accumulators, when we add to a value we must
+    /// ensure the value was initialized with an accumulator (not T.init!)
+    static T combine (T)(T lhs, T rhs)
+        if (is(T == Point))
+    {
+        assert(lhs != T.init || rhs != T.init);  // at least one must be initialized
+
+        if (lhs == T.init)
+            return rhs;
+        else if (rhs == T.init)
+            return lhs;
+        else
+            return lhs + rhs;
+    }
+
+    static Point getExpectedR (BlockHeader block, Point[] prev_pubs)
+    {
+        Point exp_Rs;
+
+        foreach (idx; 0 .. block.validators.length)
+        {
+            if (auto image = cast(ushort)idx in block.preimages)
+            {
+                if (idx < prev_pubs.length)
+                {
+                    // expected R based on (R2 = R1 + X1)
+                    auto expected_R = prev_pubs[idx] + Scalar(*image).toPoint();
+
+                    // add it to the sum of Rs
+                    exp_Rs = combine(exp_Rs, expected_R);
+                }
+            }
+        }
+
+        return exp_Rs;
+    }
+
+    // R2 = R1 + X (previous R1 + preimage)
+    Point R = getExpectedR(block, prev_pubs);
+    if (block.signature.R != R)
+        return "Signature.R does not match expected R";
+
+    /// Get the sum of public keys, based on the 'validators' bitfield
+    Point getPublicKeys (BlockHeader block)
+    {
+        Point sum;
+
+        foreach (idx, has_signed; block.validators)
+        {
+            if (has_signed)
+                sum = combine(sum, pub_keys[idx]);
+        }
+
+        return sum;
+    }
+
+    Point X = getPublicKeys(block);
+    if (!verify(X, block.signature, block))
+        return "Signature is invalid";
+
+    return null;
+}
+
+/// Ditto but returns `bool`, only usable in unittests
+version (unittest)
+public bool isValidSignature (BlockHeader block, BlockHeader prev_block,
+    Point[] prev_pubs, Point[] pub_keys) nothrow @safe
+{
+    return isInvalidSignatureReason(block, prev_block, prev_pubs, pub_keys) is null;
+}
+
+///
+unittest
+{
+    import agora.consensus.Genesis;
+    import std.algorithm;
+    import std.range;
+
+    auto gen_key = getGenesisKeyPair();
+    auto prev_block = cast()GenesisBlock;
+
+    auto txs = makeChainedTransactions(gen_key, null, 1).sort.array;
+    auto block = makeNewBlock(GenesisBlock, txs);
+
+    assert(!isValidSignature(block.header, prev_block.header, null, null));
+}
+
+/*******************************************************************************
+
     Get result of transaction data and signature verification
 
     Params:

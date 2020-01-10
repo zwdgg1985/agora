@@ -25,7 +25,6 @@ import agora.consensus.data.UTXOSet;
 import agora.consensus.Genesis;
 
 import std.conv;
-
 /*******************************************************************************
 
     Get result of transaction data and signature verification

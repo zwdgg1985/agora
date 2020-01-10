@@ -25,6 +25,7 @@ import agora.consensus.data.UTXOSet;
 import agora.consensus.Genesis;
 
 import std.conv;
+
 /*******************************************************************************
 
     Check the validation of the block header's signature
@@ -46,6 +47,7 @@ public string isInvalidSignatureReason (BlockHeader block,
 {
     scope (failure) assert(0);  // todo: fix BitArray throw/@system nonsense
     import std.algorithm;
+    import std.range;
     import agora.common.crypto.Schnorr : verify;
 
     foreach (idx, preimage; block.preimages)
@@ -77,42 +79,50 @@ public string isInvalidSignatureReason (BlockHeader block,
     if (num_signers == 0)
         return "Nobody signed this block";
 
-    /// Returns: The accumulated values
-    /// Note: be aware of accumulators, when we add to a value we must
-    /// ensure the value was initialized with an accumulator (not T.init!)
-    static T combine (T)(T lhs, T rhs)
-        if (is(T == Point))
+    /// Get the sum of the public keys, used for validation
+    static Point getPublicKeys (BlockHeader block, Point[] pub_keys)
     {
-        assert(lhs != T.init || rhs != T.init);  // at least one must be initialized
+        auto signed_keys = block.validators
+            .range
+            .enumerate
+            .filter!(elem => elem.value)  // signed
+            .map!(elem => elem.index)
+            .map!(idx => pub_keys[idx]);
 
-        if (lhs == T.init)
-            return rhs;
-        else if (rhs == T.init)
-            return lhs;
+        if (signed_keys.empty)
+            assert(0);  // sanity check
+
+        auto first = signed_keys.front;
+        signed_keys.popFront();
+
+        if (signed_keys.empty)
+            return first;
         else
-            return lhs + rhs;
+            return sum(signed_keys, first);
     }
 
+    /// Get the sum of the expected R, used for validation
     static Point getExpectedR (BlockHeader block, Point[] prev_pubs)
     {
-        Point exp_Rs;
+        auto expected_Rs = block.validators
+            .range
+            .enumerate
+            .filter!(elem => elem.value)  // signed
+            .map!(elem => cast(ushort)elem.index)
+            .map!(idx =>
+                // expected R based on (R2 = R1 + X1)
+                prev_pubs[idx] + Scalar(block.preimages[idx]).toPoint());
 
-        foreach (idx; 0 .. block.validators.length)
-        {
-            if (auto image = cast(ushort)idx in block.preimages)
-            {
-                if (idx < prev_pubs.length)
-                {
-                    // expected R based on (R2 = R1 + X1)
-                    auto expected_R = prev_pubs[idx] + Scalar(*image).toPoint();
+        if (expected_Rs.empty)
+            assert(0);  // sanity check
 
-                    // add it to the sum of Rs
-                    exp_Rs = combine(exp_Rs, expected_R);
-                }
-            }
-        }
+        auto first = expected_Rs.front;
+        expected_Rs.popFront();
 
-        return exp_Rs;
+        if (expected_Rs.empty)
+            return first;
+        else
+            return sum(expected_Rs, first);
     }
 
     // R2 = R1 + X (previous R1 + preimage)
@@ -120,21 +130,7 @@ public string isInvalidSignatureReason (BlockHeader block,
     if (block.signature.R != R)
         return "Signature.R does not match expected R";
 
-    /// Get the sum of public keys, based on the 'validators' bitfield
-    Point getPublicKeys (BlockHeader block)
-    {
-        Point sum;
-
-        foreach (idx, has_signed; block.validators)
-        {
-            if (has_signed)
-                sum = combine(sum, pub_keys[idx]);
-        }
-
-        return sum;
-    }
-
-    Point X = getPublicKeys(block);
+    Point X = getPublicKeys(block, pub_keys);
     if (!verify(X, block.signature, block))
         return "Signature is invalid";
 
@@ -153,7 +149,15 @@ public bool isValidSignature (BlockHeader block, BlockHeader prev_block,
 unittest
 {
     import agora.consensus.Genesis;
+    import agora.common.Amount;
+    import agora.common.crypto.Schnorr;
+    import agora.common.EnrollmentManager;
+    import agora.consensus.data.Enrollment;
+    import agora.consensus.data.Transaction;
+    import agora.consensus.data.UTXOSet;
+
     import std.algorithm;
+    import std.format;
     import std.range;
 
     auto gen_key = getGenesisKeyPair();
@@ -162,7 +166,97 @@ unittest
     auto txs = makeChainedTransactions(gen_key, null, 1).sort.array;
     auto block = makeNewBlock(GenesisBlock, txs);
 
-    assert(!isValidSignature(block.header, prev_block.header, null, null));
+    KeyPair[] key_pairs = [KeyPair.random];
+
+    class Node
+    {
+        KeyPair key_pair;
+        Pair pair;
+        UTXOSet utxo_set;
+        EnrollmentManager man;
+        Enrollment enroll;
+
+        this ()
+        {
+            this.key_pair = KeyPair.random();
+
+            Transaction tx1 = Transaction(
+                TxType.Freeze,
+                [Input(Hash.init, 0)],
+                [Output(Amount.MinFreezeAmount, key_pairs[0].address)]
+            );
+
+            this.utxo_set = new UTXOSet(":memory:");
+            this.man = new EnrollmentManager(":memory:", key_pairs[0]);
+            this.utxo_set.updateUTXOCache(tx1, 1);
+
+            // find UTXOs to use in making enrollment data
+            Hash[] utxo_hashes;
+            auto utxos = this.utxo_set.getUTXOs(key_pairs[0].address);
+            foreach (key, value; utxos)
+                utxo_hashes ~= key;
+
+            // create and add the first Enrollment object
+            auto utxo_hash = utxo_hashes[0];
+            this.man.createEnrollment(utxo_hash, this.enroll);
+
+            block.header.enrollments ~= this.enroll;
+
+            txs = makeChainedTransactions(gen_key, txs, 1).sort.array;
+            auto block2 = makeNewBlock(block, txs);
+
+            auto key = key_pairs[0].secret.secretKeyToCurveScalar();
+            this.pair = Pair(key, key.toPoint());
+        }
+
+        Hash getNextPreimage ()
+        {
+            static size_t preimage_index;
+
+            Hash preimage = hashFull(this.man.data.random_seed);
+
+            foreach (i; 0 .. this.man.data.cycle_length - preimage_index)
+                preimage = preimage.hashFull();
+
+            preimage_index++;
+
+            return preimage;
+        }
+
+        public void clear ()
+        {
+            this.man.shutdown();
+            this.utxo_set.shutdown();
+        }
+    }
+
+    //auto node_1 = new Node();
+    //auto node_2 = new Node();
+
+    //Point[] pub_keys = [node_1.pair.V, node_2.pair.V];
+    //sort(pub_keys);
+
+    //ushort getKeyIndex (Point key)
+    //{
+    //    auto res = pub_keys.countUntil(key);
+    //    assert(res >= 0);
+    //    assert(res < ushort.max);
+    //    return cast(ushort)res;
+    //}
+
+    //// sanity check
+    //assert(getKeyIndex(pub_keys[0]) == 0);
+    //assert(getKeyIndex(pub_keys[1]) == 1);
+
+    /////
+    //void revealPreimage (ref BlockHeader block, Point pub_key, Hash preimage)
+    //{
+    //    auto signer_index = getKeyIndex(pub_key);
+    //    block.preimages[signer_index] = preimage;
+    //}
+
+    //
+    //signBlock(block_1, all_pubs, key, n1_rand_pair1, prev_pubs);
 }
 
 /*******************************************************************************

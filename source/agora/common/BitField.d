@@ -119,11 +119,46 @@ public struct BitField
     {
         return this.num_bits;
     }
+
+    /// Returns: a range of bits
+    public auto range ()
+    {
+        static struct Range
+        {
+            BitArray arr;
+            size_t idx;
+
+            bool empty () @property
+            {
+                return idx == arr.length;
+            }
+
+            void popFront () @property
+            {
+                idx++;
+            }
+
+            size_t length() @property
+            {
+                return arr.length;
+            }
+
+            bool front ()
+            {
+                return arr[idx];
+            }
+        }
+
+        return Range(this.bit_array);
+    }
 }
 
 /// opEquals tests
 unittest
 {
+    import std.algorithm;
+    import std.range;
+
     auto bf1 = BitField(6);
     bf1[0] = true;
     bf1[2] = true;

@@ -171,7 +171,7 @@ unittest
     Pair[] pair_keys;
     8.iota.each!(_ => pair_keys ~= Pair.random());
 
-    Pair[] genNodesRands (size_t length)
+    Pair[] genRandomPairs (size_t length)
     {
         Pair[] nodes_rands;
         nodes_rands.length = 8;
@@ -183,7 +183,7 @@ unittest
     }
 
     // these are the initial R's that were precommited in the enrollment
-    Pair[] nodes_rands = genNodesRands(8);
+    Pair[] nodes_rands = genRandomPairs(8);
 
     // the calculated R's for each node for the previous block (always replaced,
     // but might keep a history of these in case blocks get rolled-back)

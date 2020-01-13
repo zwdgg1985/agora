@@ -285,7 +285,8 @@ public class EnrollmentManager
 
     ***************************************************************************/
 
-    public bool createEnrollment (Hash frozen_utxo_hash, out Enrollment enroll) @trusted nothrow
+    public bool createEnrollment (Hash frozen_utxo_hash, out Enrollment enroll,
+        uint cycle_length = 1008) @trusted nothrow
     {
         static ubyte[] buffer;
         buffer.length = 0;
@@ -294,7 +295,7 @@ public class EnrollmentManager
         this.data.utxo_key = frozen_utxo_hash;
 
         // N, cycle length
-        this.data.cycle_length = 1008; // freezing period / 2
+        this.data.cycle_length = cycle_length; // freezing period / 2
 
         // generate random seed value
         this.random_seed_src = Scalar.random();

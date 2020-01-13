@@ -31,8 +31,9 @@ import std.conv;
     Check the validation of the block header's signature
 
     Params:
-        block = the block header to validate
-        prev_block = the previous block header
+        header = the block header to validate
+        prev_header = the previous block header
+        prev_Rs = the sum of R from the previous block
         pub_keys = public keys of all validators, sorted alphabetically
                    to enable bitmask index lookup
 
@@ -42,27 +43,27 @@ import std.conv;
 
 *******************************************************************************/
 
-public string isInvalidSignatureReason (BlockHeader block,
-    BlockHeader prev_block, Point[] prev_pubs, Point[] pub_keys) nothrow @trusted
+public string isInvalidSignatureReason (BlockHeader header,
+    BlockHeader prev_header, Point[] prev_Rs, Point[] pub_keys) nothrow @trusted
 {
-    scope (failure) assert(0);  // todo: fix BitArray throw/@system nonsense
+    scope (failure) assert(0);  // todo: fix BitArray throw/@system
     import std.algorithm;
     import std.range;
     import agora.common.crypto.Schnorr : verify;
 
-    foreach (idx, preimage; block.preimages)
+    foreach (idx, preimage; header.preimages)
     {
         // missing preimage
-        if (idx !in prev_block.preimages)
+        if (idx !in prev_header.preimages)
             return "Missing preimage in the previous block";
 
         // preimage must be of the previous preimage
-        if (preimage.hashFull() != prev_block.preimages[idx])
+        if (preimage.hashFull() != prev_header.preimages[idx])
             return "Preimage does not hash to the previous preimage";
     }
 
     size_t num_signers;
-    foreach (idx, has_signed; block.validators)
+    foreach (idx, has_signed; header.validators)
     {
         if (!has_signed)
             continue;
@@ -70,7 +71,7 @@ public string isInvalidSignatureReason (BlockHeader block,
         num_signers++;
 
         // this validator did not reveal the preimage, cannot sign
-        if (cast(ushort)idx !in block.preimages)
+        if (cast(ushort)idx !in header.preimages)
             return "Validator which signed has not revealed the preimage";
     }
 
@@ -79,59 +80,45 @@ public string isInvalidSignatureReason (BlockHeader block,
     if (num_signers == 0)
         return "Nobody signed this block";
 
-    /// Get the sum of the public keys, used for validation
-    static Point getPublicKeys (BlockHeader block, Point[] pub_keys)
+    /// Get the sum of P (public keys), and sum of R (public random value)
+    static auto getExpected (BlockHeader header, Point[] pub_keys, Point[] prev_Rs)
     {
-        auto signed_keys = block.validators
-            .range
-            .enumerate
-            .filter!(elem => elem.value)  // signed
-            .map!(elem => elem.index)
-            .map!(idx => pub_keys[idx]);
+        struct Result
+        {
+            /// Public key
+            Point P;
 
-        if (signed_keys.empty)
-            assert(0);  // sanity check
+            /// R
+            Point R;
+        }
 
-        auto first = signed_keys.front;
-        signed_keys.popFront();
-
-        if (signed_keys.empty)
-            return first;
-        else
-            return sum(signed_keys, first);
-    }
-
-    /// Get the sum of the expected R, used for validation
-    static Point getExpectedR (BlockHeader block, Point[] prev_pubs)
-    {
-        auto expected_Rs = block.validators
+        auto signed_vals = header.validators
             .range
             .enumerate
             .filter!(elem => elem.value)  // signed
             .map!(elem => cast(ushort)elem.index)
             .map!(idx =>
-                // expected R based on (R2 = R1 + X1)
-                prev_pubs[idx] + Scalar(block.preimages[idx]).toPoint());
+                Result(
+                    pub_keys[idx],
+                    // expected R based on (R2 = R1 + X1)
+                    prev_Rs[idx] + Scalar(header.preimages[idx]).toPoint())
+                );
 
-        if (expected_Rs.empty)
-            assert(0);  // sanity check
+        auto first = signed_vals.front;
+        signed_vals.popFront();
 
-        auto first = expected_Rs.front;
-        expected_Rs.popFront();
-
-        if (expected_Rs.empty)
-            return first;
-        else
-            return sum(expected_Rs, first);
+        return Result(
+            sum(signed_vals.map!(elem => elem.P), first.P),
+            sum(signed_vals.map!(elem => elem.R), first.R)
+        );
     }
 
-    // R2 = R1 + X (previous R1 + preimage)
-    Point R = getExpectedR(block, prev_pubs);
-    if (block.signature.R != R)
+    auto expected = getExpected(header, prev_Rs, pub_keys);
+
+    if (header.signature.R != expected.R)
         return "Signature.R does not match expected R";
 
-    Point X = getPublicKeys(block, pub_keys);
-    if (!verify(X, block.signature, block))
+    if (!verify(expected.P, header.signature, header))
         return "Signature is invalid";
 
     return null;
@@ -139,17 +126,21 @@ public string isInvalidSignatureReason (BlockHeader block,
 
 /// Ditto but returns `bool`, only usable in unittests
 version (unittest)
-public bool isValidSignature (BlockHeader block, BlockHeader prev_block,
-    Point[] prev_pubs, Point[] pub_keys) nothrow @safe
+public bool isValidSignature (BlockHeader header, BlockHeader prev_header,
+    Point[] prev_Rs, Point[] pub_keys) nothrow @safe
 {
-    return isInvalidSignatureReason(block, prev_block, prev_pubs, pub_keys) is null;
+    return isInvalidSignatureReason(header, prev_header, prev_Rs, pub_keys) is null;
 }
 
 ///
 unittest
 {
+    // todo: remove
+    import std.stdio;
+
     import agora.consensus.Genesis;
     import agora.common.Amount;
+    import agora.common.BitField;
     import agora.common.crypto.Schnorr;
     import agora.common.EnrollmentManager;
     import agora.consensus.data.Enrollment;
@@ -163,100 +154,171 @@ unittest
     auto gen_key = getGenesisKeyPair();
     auto prev_block = cast()GenesisBlock;
 
-    auto txs = makeChainedTransactions(gen_key, null, 1).sort.array;
-    auto block = makeNewBlock(GenesisBlock, txs);
-
-    KeyPair[] key_pairs = [KeyPair.random];
+    static ushort getKeyIndex (Point[] pub_keys, Point key)
+    {
+        auto res = pub_keys.countUntil(key);
+        assert(res >= 0);
+        assert(res < ushort.max);
+        return cast(ushort)res;
+    }
 
     class Node
     {
-        KeyPair key_pair;
         Pair pair;
         UTXOSet utxo_set;
         EnrollmentManager man;
         Enrollment enroll;
+        size_t preimage_index;
+
+        /// updated for each new block
+        public Hash preimage;
+
+        /// ditto, but private and used for signing
+        private Scalar random_r;
 
         this ()
         {
-            this.key_pair = KeyPair.random();
+            auto key_pair = KeyPair.random();
+            auto v = key_pair.secret.secretKeyToCurveScalar();
+            this.pair = Pair(v, v.toPoint());
 
-            Transaction tx1 = Transaction(
+            Transaction utxo_tx = Transaction(
                 TxType.Freeze,
                 [Input(Hash.init, 0)],
-                [Output(Amount.MinFreezeAmount, key_pairs[0].address)]
+                [Output(Amount.MinFreezeAmount, key_pair.address)]
             );
 
             this.utxo_set = new UTXOSet(":memory:");
-            this.man = new EnrollmentManager(":memory:", key_pairs[0]);
-            this.utxo_set.updateUTXOCache(tx1, 1);
+            this.man = new EnrollmentManager(":memory:", key_pair);
+            this.utxo_set.updateUTXOCache(utxo_tx, 1);
 
-            // find UTXOs to use in making enrollment data
             Hash[] utxo_hashes;
-            auto utxos = this.utxo_set.getUTXOs(key_pairs[0].address);
+            auto utxos = this.utxo_set.getUTXOs(key_pair.address);
             foreach (key, value; utxos)
                 utxo_hashes ~= key;
 
-            // create and add the first Enrollment object
             auto utxo_hash = utxo_hashes[0];
-            this.man.createEnrollment(utxo_hash, this.enroll);
-
-            block.header.enrollments ~= this.enroll;
-
-            txs = makeChainedTransactions(gen_key, txs, 1).sort.array;
-            auto block2 = makeNewBlock(block, txs);
-
-            auto key = key_pairs[0].secret.secretKeyToCurveScalar();
-            this.pair = Pair(key, key.toPoint());
+            this.man.createEnrollment(utxo_hash, this.enroll, 5);
+            this.random_r = this.man.random_seed_src;
         }
 
-        Hash getNextPreimage ()
+        // prepare the next (R, r) for the preimages
+        void prepareForSigning ()
         {
-            static size_t preimage_index;
+            this.preimage = hashFull(this.man.random_seed_src);
 
-            Hash preimage = hashFull(this.man.data.random_seed);
+            writeln("");
+            writefln("preimage %s", this.preimage);
+            foreach (i; 0 .. (this.man.data.cycle_length - 1) - preimage_index)
+            {
+                this.preimage = this.preimage.hashFull();
+                writefln("preimage %s", this.preimage);
+            }
 
-            foreach (i; 0 .. this.man.data.cycle_length - preimage_index)
-                preimage = preimage.hashFull();
-
+            writeln("");
             preimage_index++;
 
-            return preimage;
+            //nodes_rands[0].V + Scalar(n1_preims[$ - 1]).toPoint();
+
+            this.random_r = this.random_r + Scalar(this.preimage);
         }
 
-        public void clear ()
+        Point getR ()
+        {
+            return this.random_r.toPoint();
+        }
+
+        ///
+        void signBlock (ref Block block, Point[] pub_keys, Point P, Point R)
+        {
+            // get our key index (to mark the bitmask / reveal preimage)
+            auto signer_index = getKeyIndex(pub_keys, this.pair.V);
+
+            // reveal our preimage
+            block.header.preimages[signer_index] = this.preimage;
+            writefln("Revealed preimage at (%s) %s which hashes to %s",
+                signer_index, this.preimage,hashFull(this.preimage));
+
+            auto sig = sign(this.pair.v, P, R, this.random_r, block);
+
+            // add our signature to the header
+            block.header.signature.s = block.header.signature.s + sig.s;
+
+            // mark that we've signed this block
+            block.header.validators[signer_index] = true;
+        }
+
+        void clear ()
         {
             this.man.shutdown();
             this.utxo_set.shutdown();
         }
     }
 
-    //auto node_1 = new Node();
-    //auto node_2 = new Node();
+    auto node_1 = new Node();
+    scope (exit) node_1.clear();
+    auto node_2 = new Node();
+    scope (exit) node_2.clear();
 
-    //Point[] pub_keys = [node_1.pair.V, node_2.pair.V];
-    //sort(pub_keys);
+    Point[] pub_keys = [node_1.pair.V, node_2.pair.V];
+    sort(pub_keys);
 
-    //ushort getKeyIndex (Point key)
-    //{
-    //    auto res = pub_keys.countUntil(key);
-    //    assert(res >= 0);
-    //    assert(res < ushort.max);
-    //    return cast(ushort)res;
-    //}
+    // simulate block 1 containing enrollment data, validate blocks #2+
+    auto txs = makeChainedTransactions(gen_key, null, 1).sort.array;
+    auto block_1 = makeNewBlock(GenesisBlock, txs);
+    block_1.header.enrollments ~= node_1.enroll;
+    block_1.header.enrollments ~= node_2.enroll;
+    block_1.header.validators = BitField(2);  // two validators
 
-    //// sanity check
-    //assert(getKeyIndex(pub_keys[0]) == 0);
-    //assert(getKeyIndex(pub_keys[1]) == 1);
+    // the calculated R's for each node for the previous block (always replaced,
+    // but might keep a history of these in case blocks get rolled-back)
+    Point[] prev_Rs;
+    prev_Rs.length = 2;
 
-    /////
-    //void revealPreimage (ref BlockHeader block, Point pub_key, Hash preimage)
-    //{
-    //    auto signer_index = getKeyIndex(pub_key);
-    //    block.preimages[signer_index] = preimage;
-    //}
+    // prepare first preimage
+    node_1.prepareForSigning();
+    node_2.prepareForSigning();
 
-    //
-    //signBlock(block_1, all_pubs, key, n1_rand_pair1, prev_pubs);
+    // set the R (first one derived from enrollment!)
+    // prev_pubs[getKeyIndex(pair_keys[0].V)] = nodes_rands[0].V + Scalar(n1_preims[$ - 1]).toPoint();
+    prev_Rs[getKeyIndex(pub_keys, node_1.pair.V)] = node_1.getR();
+    prev_Rs[getKeyIndex(pub_keys, node_2.pair.V)] = node_2.getR();
+
+    block_1.header.preimages[getKeyIndex(pub_keys, node_1.pair.V)] = node_1.preimage;
+    block_1.header.preimages[getKeyIndex(pub_keys, node_2.pair.V)] = node_2.preimage;
+    writefln("First preimage A (idx %s): %s", getKeyIndex(pub_keys, node_1.pair.V), node_1.preimage);
+    writefln("First preimage B (idx %s): %s", getKeyIndex(pub_keys, node_2.pair.V), node_2.preimage);
+
+    txs = makeChainedTransactions(gen_key, txs, 1).sort.array;
+    auto block_2 = makeNewBlock(block_1, txs);
+    block_2.header.validators = BitField(2);  // two validators
+
+    // before signing, nodes signal that they want to sign the block.
+    // they also prepare the (R, r) pair
+    node_1.prepareForSigning();
+    node_2.prepareForSigning();
+    writefln("Second preimage A (idx %s): %s.\nHashes to: %s",
+        getKeyIndex(pub_keys, node_1.pair.V), node_1.preimage, hashFull(node_1.preimage));
+    writefln("Second preimage B (idx %s): %s.\nHashes to: %s",
+        getKeyIndex(pub_keys, node_2.pair.V), node_2.preimage, hashFull(node_2.preimage));
+    writeln();
+
+    // P is the sum of all validator's public keys which intend to sign this block
+    Point P = pub_keys[0] + pub_keys[1];
+
+    // R is the sum of their expected next Rs
+    Point R = node_1.getR() + node_2.getR();
+
+    block_2.header.signature.R = R;
+    node_1.signBlock(block_2, pub_keys, P, R);
+    node_2.signBlock(block_2, pub_keys, P, R);
+
+    auto reason = isInvalidSignatureReason(block_2.header, block_1.header, prev_Rs, pub_keys);
+    writeln(reason);
+
+    //assert(isValidSignature(block_2.header, block_1.header, prev_Rs, pub_keys));
+
+    //assert(isValidSignature(block_2.header, block_1.header, prev_Rs, pub_keys));
 }
 
 /*******************************************************************************

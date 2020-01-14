@@ -25,6 +25,84 @@ import agora.consensus.data.UTXOSet;
 import agora.consensus.Genesis;
 
 import std.conv;
+import std.stdio;  // todo: remove
+
+/// Get the sum of P (public keys), and sum of R (public random value)
+private auto getExpected (BlockHeader header, Point[] pub_keys, Point[] prev_Rs)
+{
+    import std.algorithm;
+    import std.range;
+
+    struct Result
+    {
+        /// Public key
+        Point P;
+
+        /// R
+        Point R;
+    }
+
+    auto signed_vals = header.validators
+        .range
+        .enumerate
+        .filter!(elem => elem.value)  // signed
+        .filter!(elem => elem.index < prev_Rs.length)  // exists in previous R's
+        .map!(elem => cast(ushort)elem.index)
+        .map!(idx =>
+            Result(
+                pub_keys[idx],
+                // expected R based on (R2 = R1 + X1)
+                prev_Rs[idx] + Scalar(header.preimages[idx]).toPoint())
+            );
+
+    auto first = signed_vals.front;
+    signed_vals.popFront();
+
+    //writeln();
+    //writefln("- Summed image point %s", first.R);
+    //foreach (val; signed_vals)
+    //{
+    //    writefln("- Summed image point %s", val.R);
+    //}
+
+    //writefln("- And summed together: %s", first.R + signed_vals.front.R);
+
+    return Result(
+        sum(signed_vals.map!(elem => elem.P), first.P),
+        sum(signed_vals.map!(elem => elem.R), first.R)
+    );
+}
+
+Point getExpectedR (Block block, Point[] prev_Rs)
+{
+    Point exp_Rs;
+
+    foreach (idx; 0 .. block.header.validators.length)
+    {
+        if (auto image = cast(ushort)idx in block.header.preimages)
+        {
+            if (idx < prev_Rs.length)
+            {
+                //writeln();
+                //writefln("+ Found image point %s", Scalar(*image).toPoint());
+                //writefln("+ Summing %s and %s = %s", prev_Rs[idx],
+                //    Scalar(*image).toPoint(),
+                //    prev_Rs[idx] + Scalar(*image).toPoint());
+
+                // expected R based on (R2 = R1 + X1)
+                auto expected_R = prev_Rs[idx] + Scalar(*image).toPoint();
+
+                //writefln("+ exp_Rs before: %s", exp_Rs);
+                // add it to the sum of Rs
+                exp_Rs = combine(exp_Rs, expected_R);
+                //writefln("+ exp_Rs after: %s", exp_Rs);
+                //writeln();
+            }
+        }
+    }
+
+    return exp_Rs;
+}
 
 /*******************************************************************************
 
@@ -80,40 +158,7 @@ public string isInvalidSignatureReason (BlockHeader header,
     if (num_signers == 0)
         return "Nobody signed this block";
 
-    /// Get the sum of P (public keys), and sum of R (public random value)
-    static auto getExpected (BlockHeader header, Point[] pub_keys, Point[] prev_Rs)
-    {
-        struct Result
-        {
-            /// Public key
-            Point P;
-
-            /// R
-            Point R;
-        }
-
-        auto signed_vals = header.validators
-            .range
-            .enumerate
-            .filter!(elem => elem.value)  // signed
-            .map!(elem => cast(ushort)elem.index)
-            .map!(idx =>
-                Result(
-                    pub_keys[idx],
-                    // expected R based on (R2 = R1 + X1)
-                    prev_Rs[idx] + Scalar(header.preimages[idx]).toPoint())
-                );
-
-        auto first = signed_vals.front;
-        signed_vals.popFront();
-
-        return Result(
-            sum(signed_vals.map!(elem => elem.P), first.P),
-            sum(signed_vals.map!(elem => elem.R), first.R)
-        );
-    }
-
-    auto expected = getExpected(header, prev_Rs, pub_keys);
+    auto expected = getExpected(header, pub_keys, prev_Rs);
 
     if (header.signature.R != expected.R)
         return "Signature.R does not match expected R";
@@ -135,9 +180,6 @@ public bool isValidSignature (BlockHeader header, BlockHeader prev_header,
 ///
 unittest
 {
-    // todo: remove
-    import std.stdio;
-
     import agora.consensus.Genesis;
     import agora.common.Amount;
     import agora.common.BitField;
@@ -228,8 +270,7 @@ unittest
             return this.random_r.toPoint();
         }
 
-        ///
-        void signBlock (ref Block block, Point[] pub_keys, Point P, Point R)
+        void revealPreimage (ref Block block, Point[] pub_keys)
         {
             // get our key index (to mark the bitmask / reveal preimage)
             auto signer_index = getKeyIndex(pub_keys, this.pair.V);
@@ -239,13 +280,22 @@ unittest
             writefln("Revealed preimage at (%s) %s which hashes to %s",
                 signer_index, this.preimage,hashFull(this.preimage));
 
+            // mark that we signed this block
+            block.header.validators[signer_index] = true;
+        }
+
+        ///
+        void signBlock (ref Block block, Point[] pub_keys, Point P, Point R)
+        {
             auto sig = sign(this.pair.v, P, R, this.random_r, block);
 
             // add our signature to the header
-            block.header.signature.s = block.header.signature.s + sig.s;
+            writefln("adding signature %s with %s = %s",
+                block.header.signature.s,
+                sig.s,
+                block.header.signature.s + sig.s);
 
-            // mark that we've signed this block
-            block.header.validators[signer_index] = true;
+            block.header.signature.s = block.header.signature.s + sig.s;
         }
 
         void clear ()
@@ -284,8 +334,9 @@ unittest
     prev_Rs[getKeyIndex(pub_keys, node_1.pair.V)] = node_1.getR();
     prev_Rs[getKeyIndex(pub_keys, node_2.pair.V)] = node_2.getR();
 
-    block_1.header.preimages[getKeyIndex(pub_keys, node_1.pair.V)] = node_1.preimage;
-    block_1.header.preimages[getKeyIndex(pub_keys, node_2.pair.V)] = node_2.preimage;
+    node_1.revealPreimage(block_1, pub_keys);
+    node_2.revealPreimage(block_1, pub_keys);
+
     writefln("First preimage A (idx %s): %s", getKeyIndex(pub_keys, node_1.pair.V), node_1.preimage);
     writefln("First preimage B (idx %s): %s", getKeyIndex(pub_keys, node_2.pair.V), node_2.preimage);
 
@@ -309,15 +360,33 @@ unittest
     // R is the sum of their expected next Rs
     Point R = node_1.getR() + node_2.getR();
 
+    node_1.revealPreimage(block_2, pub_keys);
+    node_2.revealPreimage(block_2, pub_keys);
+
+    assert(getExpected(block_2.header, pub_keys, prev_Rs).R ==
+        getExpectedR(block_2, prev_Rs));
+
+    //writeln();
+    //writefln("Actual R: %s", R);
+    //writeln();
+    //writefln("Expected R: %s", getExpected(block_2.header, pub_keys, prev_Rs).R);
+    //writeln();
+    //writefln("Expected R: %s", getExpectedR(block_2, prev_Rs));
+    //writeln();
+
     block_2.header.signature.R = R;
     node_1.signBlock(block_2, pub_keys, P, R);
-    node_2.signBlock(block_2, pub_keys, P, R);
 
-    auto reason = isInvalidSignatureReason(block_2.header, block_1.header, prev_Rs, pub_keys);
+    auto reason = isInvalidSignatureReason(block_2.header, block_1.header,
+        prev_Rs, pub_keys);
+    writeln(reason);
+
+    node_2.signBlock(block_2, pub_keys, P, R);
+    reason = isInvalidSignatureReason(block_2.header, block_1.header,
+        prev_Rs, pub_keys);
     writeln(reason);
 
     //assert(isValidSignature(block_2.header, block_1.header, prev_Rs, pub_keys));
-
     //assert(isValidSignature(block_2.header, block_1.header, prev_Rs, pub_keys));
 }
 

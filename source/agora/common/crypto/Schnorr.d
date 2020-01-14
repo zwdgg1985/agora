@@ -352,15 +352,25 @@ unittest
     Pair n2_rand_pair2 = Pair(n2_rand2, n2_rand2.toPoint());
     Pair n3_rand_pair2 = Pair(n3_rand2, n3_rand2.toPoint());
 
+    writefln("R1 + R2 + R3: %s",
+        n1_rand_pair2.V + n2_rand_pair2.V + n3_rand_pair2.V);
+
+    writefln("R1: %s", n1_rand_pair2.V);
+    writefln("R2: %s", n2_rand_pair2.V);
+    writefln("R3: %s", n3_rand_pair2.V);
+
     /// signing & validation for each node
     signBlock(block_2, all_pubs, pair_keys[0], n1_rand_pair2, prev_pubs);
+    writefln("Block 2 R: %s", block_2.signature.R);
     assert(!validateBlock(block_2, block_1, prev_pubs));
 
     signBlock(block_2, all_pubs, pair_keys[1], n2_rand_pair2, prev_pubs);
     assert(!validateBlock(block_2, block_1, prev_pubs));
+    writefln("Block 2 R: %s", block_2.signature.R);
 
     signBlock(block_2, all_pubs, pair_keys[2], n3_rand_pair2, prev_pubs);
     assert(validateBlock(block_2, block_1, prev_pubs));
+    writefln("Block 2 R: %s", block_2.signature.R);
 
     updateExpectedRandoms(block_2);
 

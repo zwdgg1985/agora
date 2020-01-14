@@ -58,50 +58,10 @@ private auto getExpected (BlockHeader header, Point[] pub_keys, Point[] prev_Rs)
     auto first = signed_vals.front;
     signed_vals.popFront();
 
-    //writeln();
-    //writefln("- Summed image point %s", first.R);
-    //foreach (val; signed_vals)
-    //{
-    //    writefln("- Summed image point %s", val.R);
-    //}
-
-    //writefln("- And summed together: %s", first.R + signed_vals.front.R);
-
     return Result(
         sum(signed_vals.map!(elem => elem.P), first.P),
         sum(signed_vals.map!(elem => elem.R), first.R)
     );
-}
-
-Point getExpectedR (Block block, Point[] prev_Rs)
-{
-    Point exp_Rs;
-
-    foreach (idx; 0 .. block.header.validators.length)
-    {
-        if (auto image = cast(ushort)idx in block.header.preimages)
-        {
-            if (idx < prev_Rs.length)
-            {
-                //writeln();
-                //writefln("+ Found image point %s", Scalar(*image).toPoint());
-                //writefln("+ Summing %s and %s = %s", prev_Rs[idx],
-                //    Scalar(*image).toPoint(),
-                //    prev_Rs[idx] + Scalar(*image).toPoint());
-
-                // expected R based on (R2 = R1 + X1)
-                auto expected_R = prev_Rs[idx] + Scalar(*image).toPoint();
-
-                //writefln("+ exp_Rs before: %s", exp_Rs);
-                // add it to the sum of Rs
-                exp_Rs = combine(exp_Rs, expected_R);
-                //writefln("+ exp_Rs after: %s", exp_Rs);
-                //writeln();
-            }
-        }
-    }
-
-    return exp_Rs;
 }
 
 /*******************************************************************************
@@ -162,8 +122,6 @@ public string isInvalidSignatureReason (BlockHeader header,
 
     if (header.signature.R != expected.R)
         return "Signature.R does not match expected R";
-
-    writefln("Verifying with %s", expected.P);
 
     if (!verify(expected.P, header.signature, header))
         return "Signature is invalid";
@@ -251,19 +209,10 @@ unittest
         {
             this.preimage = hashFull(this.man.random_seed_src);
 
-            writeln("");
-            writefln("preimage %s", this.preimage);
             foreach (i; 0 .. (this.man.data.cycle_length - 1) - preimage_index)
-            {
                 this.preimage = this.preimage.hashFull();
-                writefln("preimage %s", this.preimage);
-            }
 
-            writeln("");
             preimage_index++;
-
-            //nodes_rands[0].V + Scalar(n1_preims[$ - 1]).toPoint();
-
             this.random_r = this.random_r + Scalar(this.preimage);
         }
 
@@ -279,8 +228,6 @@ unittest
 
             // reveal our preimage
             block.header.preimages[signer_index] = this.preimage;
-            writefln("Revealed preimage at (%s) %s which hashes to %s",
-                signer_index, this.preimage,hashFull(this.preimage));
 
             // mark that we signed this block
             block.header.validators[signer_index] = true;
@@ -332,9 +279,6 @@ unittest
     node_1.revealPreimage(block_1, pub_keys);
     node_2.revealPreimage(block_1, pub_keys);
 
-    writefln("First preimage A (idx %s): %s", getKeyIndex(pub_keys, node_1.pair.V), node_1.preimage);
-    writefln("First preimage B (idx %s): %s", getKeyIndex(pub_keys, node_2.pair.V), node_2.preimage);
-
     txs = makeChainedTransactions(gen_key, txs, 1).sort.array;
     auto block_2 = makeNewBlock(block_1, txs);
     block_2.header.validators = BitField(2);  // two validators
@@ -343,11 +287,6 @@ unittest
     // they also prepare the (R, r) pair
     node_1.prepareForSigning();
     node_2.prepareForSigning();
-    writefln("Second preimage A (idx %s): %s.\nHashes to: %s",
-        getKeyIndex(pub_keys, node_1.pair.V), node_1.preimage, hashFull(node_1.preimage));
-    writefln("Second preimage B (idx %s): %s.\nHashes to: %s",
-        getKeyIndex(pub_keys, node_2.pair.V), node_2.preimage, hashFull(node_2.preimage));
-    writeln();
 
     // P is the sum of all validator's public keys which intend to sign this block
     Point P = pub_keys[0] + pub_keys[1];
@@ -357,9 +296,6 @@ unittest
 
     node_1.revealPreimage(block_2, pub_keys);
     node_2.revealPreimage(block_2, pub_keys);
-
-    assert(getExpected(block_2.header, pub_keys, prev_Rs).R ==
-        getExpectedR(block_2, prev_Rs));
 
     block_2.header.signature.R = R;
     node_1.signBlock(block_2, pub_keys, P, R);

@@ -163,6 +163,8 @@ public string isInvalidSignatureReason (BlockHeader header,
     if (header.signature.R != expected.R)
         return "Signature.R does not match expected R";
 
+    writefln("Verifying with %s", expected.P);
+
     if (!verify(expected.P, header.signature, header))
         return "Signature is invalid";
 
@@ -287,14 +289,7 @@ unittest
         ///
         void signBlock (ref Block block, Point[] pub_keys, Point P, Point R)
         {
-            auto sig = sign(this.pair.v, P, R, this.random_r, block);
-
-            // add our signature to the header
-            writefln("adding signature %s with %s = %s",
-                block.header.signature.s,
-                sig.s,
-                block.header.signature.s + sig.s);
-
+            auto sig = sign(this.pair.v, P, R, this.random_r, block.header);
             block.header.signature.s = block.header.signature.s + sig.s;
         }
 
@@ -366,28 +361,14 @@ unittest
     assert(getExpected(block_2.header, pub_keys, prev_Rs).R ==
         getExpectedR(block_2, prev_Rs));
 
-    //writeln();
-    //writefln("Actual R: %s", R);
-    //writeln();
-    //writefln("Expected R: %s", getExpected(block_2.header, pub_keys, prev_Rs).R);
-    //writeln();
-    //writefln("Expected R: %s", getExpectedR(block_2, prev_Rs));
-    //writeln();
-
     block_2.header.signature.R = R;
     node_1.signBlock(block_2, pub_keys, P, R);
 
-    auto reason = isInvalidSignatureReason(block_2.header, block_1.header,
-        prev_Rs, pub_keys);
-    writeln(reason);
+    // all nodes must sign
+    assert(!isValidSignature(block_2.header, block_1.header, prev_Rs, pub_keys));
 
     node_2.signBlock(block_2, pub_keys, P, R);
-    reason = isInvalidSignatureReason(block_2.header, block_1.header,
-        prev_Rs, pub_keys);
-    writeln(reason);
-
-    //assert(isValidSignature(block_2.header, block_1.header, prev_Rs, pub_keys));
-    //assert(isValidSignature(block_2.header, block_1.header, prev_Rs, pub_keys));
+    assert(isValidSignature(block_2.header, block_1.header, prev_Rs, pub_keys));
 }
 
 /*******************************************************************************

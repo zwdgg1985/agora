@@ -560,7 +560,7 @@ unittest
 }
 
 /// Represent the message to hash (part of `c`)
-private struct Message (T)
+public struct Message (T)
 {
     public Point X;
     public Point R;

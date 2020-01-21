@@ -115,3 +115,4 @@ jobs:
         sudo apt-get install libsodium-dev
         sudo apt-get install g++-9
         ./ci/run.sh
+

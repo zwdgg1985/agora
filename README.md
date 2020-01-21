@@ -75,3 +75,4 @@ At the moment, the three main ways to run the test are:
 - `dub test`: Test the consensus protocol and runs all the unittests
 - `rdmd tests/runner.d`: Run a serie of simple integrations tests
 - `ci/system_integration_test.d`: Run a full-fledged system integration test, including building the docker image.
+
